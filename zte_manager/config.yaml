@@ -1,5 +1,5 @@
 name: "ZTE Manager (MF297D)"
-version: "0.5.2"
+version: "0.5.3"
 slug: "zte_manager"
 description: "MF297D: local HAOS control panel, controlled Goform writes, LTE, LAN, Wi-Fi and diagnostics"
 arch:

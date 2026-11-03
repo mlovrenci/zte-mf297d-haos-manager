@@ -4,9 +4,9 @@ Home Assistant OS App for ZTE MF297D routers using local Goform API, with a web 
 
 ## Status
 
-Version: **0.5.0**. Read capabilities include LTE/WAN, LAN/DHCP, Wi-Fi, clients, traffic and diagnostic data.
+Version: **0.5.3**. Read capabilities include LTE/WAN, LAN/DHCP, Wi-Fi, clients, traffic and diagnostic data.
 
-**Router configuration writes have NOT been verified on the actual A1 B08 firmware.** All write options are disabled by default. DHCP reservations and DHCP Option 6 DNS write are **not implemented/confirmed**. Don't disable DHCP or modify WAN, Wi-Fi, APN or DNS until each operation is independently verified and recovery access is available.
+**General router configuration writes remain unverified on the actual A1 B08 firmware and are disabled by default.** DHCP MAC/IP reservation Add/Delete is independently confirmed and implemented. DHCP Option 6 DNS write remains **unimplemented/unconfirmed**. Don't disable DHCP or modify WAN, Wi-Fi, APN or DNS until each operation is independently verified and recovery access is available.
 
 ## Add to Home Assistant OS
 
@@ -62,3 +62,8 @@ New MQTT diagnostic button `Run ZTE static binding test once` is intentionally a
 
 ## v0.5.2: DHCP reservations confirmed on A1 B08
 The local HAOS Ingress UI provides **Add/Delete** for MAC-IP reservations, using the exact ZTE form commands verified in a live 9 → 10 → 9 reservation test. Backend validates A1 B08 firmware, existing reservation list, duplicate MAC/IP, subnet, max 10 slots, and requires a separate typed confirmation before each mutation. After sending a write, it re-reads the reservation list to verify the result. `write_enabled: false` still disables all *other* unverified router mutations; reservation writes are a separately verified feature and are available through the local UI's confirmation flow. Edit can be done manually as remove + add, after checking impact on the client. DHCP Option 6 DNS write remains unimplemented/unverified.
+
+
+## v0.5.3: DHCP DNS Option 6 read-only discovery
+
+On startup, separately checks likely DHCP/LAN DNS Goform keys and reads a bounded allowlist of original ZTE WebUI static JS/HTML assets to identify whether a dedicated DHCP DNS setter exists in the B08 build. Publishes metadata to the HA MQTT diagnostic entity **ZTE DHCP DNS Option 6 probe**. The status `candidate_found` is *not proof* that changing DNS for DHCP clients is supported. WAN DNS/APN DNS is distinct from DHCP Option 6. No DNS, DHCP pool, APN, Wi-Fi or other router settings are changed during this probe.

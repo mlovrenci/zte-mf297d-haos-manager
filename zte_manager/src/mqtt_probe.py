@@ -113,3 +113,35 @@ def publish_probe(summary):
     _mqtt_publish(service, [(CONFIG_TOPIC, discovery, True),
                             (ATTRS_TOPIC, summary, True),
                             (STATE_TOPIC, status, True)])
+
+
+# Independent read-only DNS Option 6 investigation entity. This is not a
+# configuration control or a claim that DHCP Option 6 can be changed.
+DNS_CONFIG_TOPIC = "homeassistant/sensor/zte_manager_dns_option6_probe/config"
+DNS_STATE_TOPIC = "zte_manager/diag/dns_option6/state"
+DNS_ATTRS_TOPIC = "zte_manager/diag/dns_option6/attributes"
+
+
+def publish_dns_probe(summary):
+    token = os.getenv("SUPERVISOR_TOKEN") or os.getenv("HASSIO_TOKEN", "")
+    if not token:
+        raise MQTTProbeError("supervisor_token_missing")
+    request = urllib.request.Request("http://supervisor/services/mqtt",
+        headers={"Authorization": "Bearer " + token, "Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=5) as resp:
+        data = json.loads(resp.read(16384).decode("utf-8"))
+    service = data.get("data") if isinstance(data.get("data"), dict) else data
+    if not isinstance(service, dict) or not service.get("host") or not service.get("port"):
+        raise MQTTProbeError("mqtt_service_unavailable")
+    discovery = {
+        "name": "ZTE DHCP DNS Option 6 probe",
+        "unique_id": "zte_manager_dns_option6_probe_v053",
+        "state_topic": DNS_STATE_TOPIC,
+        "json_attributes_topic": DNS_ATTRS_TOPIC,
+        "entity_category": "diagnostic",
+        "icon": "mdi:dns",
+        "device": {"identifiers": ["zte_manager_mf297d"], "name": "ZTE Manager MF297D"},
+    }
+    _mqtt_publish(service, [(DNS_CONFIG_TOPIC, discovery, True),
+                            (DNS_ATTRS_TOPIC, summary, True),
+                            (DNS_STATE_TOPIC, str(summary.get("status", "unconfirmed"))[:250], True)])

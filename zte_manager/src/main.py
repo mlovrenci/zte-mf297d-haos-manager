@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.2: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.3: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -10,11 +10,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import RLock
 from time import monotonic, time
 from zte_api import RouterClient, RouterError
-from mqtt_probe import publish_probe, MQTTProbeError
+from mqtt_probe import publish_probe, publish_dns_probe, MQTTProbeError
+from dns_option6_probe import probe_dns_option6
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.2"
+VERSION = "0.5.3"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -385,6 +386,36 @@ def startup_dhcp_probe():
             pass
 
 
+
+def startup_dns_option6_probe():
+    """Read-only B08 exploration; no ZTE set endpoint is ever invoked."""
+    threading.Event().wait(15)
+    try:
+        o = options()
+        # Separate client and bounded read-only probe; do not hold ROUTER_LOCK
+        # through slow WebUI static file tests (would block live Ingress UI).
+        client = connect(o)
+        client.timeout = min(client.timeout, 3)
+        version = client.get(["cr_version"]).get("cr_version")
+        if version != "CR_A1HRMF297DV1.0.0B08":
+            result = {"status":"firmware_mismatch", "option6_verified":False,
+                      "firmware_matches":False, "read_only":True}
+        else:
+            result = probe_dns_option6(client)
+            result["firmware_matches"] = True
+        result["version"] = VERSION
+        publish_dns_probe(result)
+    except Exception as exc:
+        # Keep errors class-only: no router IP, cookies, credentials or body.
+        print(f"ZTE DNS Option6 read-only probe unavailable: {type(exc).__name__}",flush=True)
+        try:
+            publish_dns_probe({"status":"probe_error", "version":VERSION,
+                               "error_type":type(exc).__name__, "option6_verified":False,
+                               "read_only":True})
+        except Exception:
+            pass
+
+
 def monitor_loop():
     # Disabled by default. One small poll every N seconds when enabled.
     while True:
@@ -401,7 +432,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.5.2"
+    server_version = "ZTEManager/0.5.3"
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged
@@ -617,6 +648,7 @@ if __name__ == "__main__":
     print(f"ZTE Manager {VERSION}: HA Ingress @8099 (password not logged)", flush=True)
     threading.Thread(target=monitor_loop, name="zte-monitor", daemon=True).start()
     threading.Thread(target=startup_dhcp_probe, name="zte-dhcp-probe", daemon=True).start()
+    threading.Thread(target=startup_dns_option6_probe, name="zte-dns-option6-probe", daemon=True).start()
     # Passive MQTT command subscriber: exposes a single-use HA diagnostic button.
     # Absolutely no router write occurs until the user presses this button.
     def start_static_test_listener():

@@ -55,3 +55,10 @@
 - Two-phase prepare + typed confirmation, 90-second expiry, fresh MAC/IP-list fingerprint and firmware checks, max 10 entries, duplicate checks, IPv4/subnet validation.
 - Best-effort check for online clients using the requested IP with another MAC. Verified re-read after every write; no automatic retries or router reboots.
 - Independent scope: general `write_enabled` remains false, but reservation Add/Delete is enabled after successful A1 B08 functional test. No DNS Option 6 write until separately verified.
+
+## 0.5.3 - Read-only DHCP DNS Option 6 exploration
+
+- Independently test likely LAN/DHCP DNS Goform field names against the actual B08 router.
+- Read and scan a fixed list of stock WebUI JS/HTML paths for DHCP DNS handling.
+- Publish sanitized metadata to `ZTE DHCP DNS Option 6 probe` in Home Assistant over MQTT.
+- Never submit DNS or DHCP configuration writes; `option6_verified` remains false.
