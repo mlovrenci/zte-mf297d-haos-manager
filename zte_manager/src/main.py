@@ -1,4 +1,4 @@
-"""ZTE Manager v0.4.7: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.4.8: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -12,7 +12,7 @@ from time import monotonic, time
 from zte_api import RouterClient, RouterError
 from mqtt_probe import publish_probe
 
-VERSION = "0.4.7"
+VERSION = "0.4.8"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -367,8 +367,9 @@ def startup_dhcp_probe():
             return
         with ROUTER_LOCK:
             client = connect(o)
-            details = client.dhcp_inventory()
-        publish_dhcp_status(details)
+            # Startup: only 2 read endpoint requests, not 20+ slow field probes.
+            transport = client.probe_reservation_transport()
+        publish_dhcp_status({"transport_probe":transport,"field_status":{},"errors":{}})
     except Exception as exc:
         print(f"ZTE DHCP startup probe unavailable: {type(exc).__name__}", flush=True)
         try:
@@ -394,7 +395,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.4.7"
+    server_version = "ZTEManager/0.4.8"
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged

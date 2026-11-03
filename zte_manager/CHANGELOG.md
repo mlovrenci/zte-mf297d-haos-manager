@@ -1,3 +1,7 @@
+## 0.4.8
+- Startup self-test uses only two read requests instead of the 20+ field inventory, avoiding long timeouts.
+- No router configuration changes.
+
 ## 0.4.7
 - One read-only DHCP inventory self-test at app startup, enabled by default via `startup_probe_once`.
 - Can be disabled in HAOS app options. Existing secrets/config remain untouched during update.
