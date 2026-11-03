@@ -56,3 +56,6 @@ Python launches using S6 `/command/with-contenv` so that the HAOS Supervisor tok
 ### v0.5.0 local reservation table
 
 The `LAN / DHCP -> Reservations -> Read` view displays up to 64 recovered rows from `current_static_addr_list` using escaped text in a local Ingress-only table. Because B08 replies can contain invalid bytes, recovered values are marked **untrusted and read-only**. MQTT discovery and logs contain metadata only; no reservation IP/MAC data are sent to MQTT. The router is never modified by these reads.
+
+## v0.5.1: experimental one-time reservation test
+New MQTT diagnostic button `Run ZTE static binding test once` is intentionally a **write** test, separate from normal `write_enabled` (which remains false). Only press when authorized. It uses a dummy MAC `02:5A:54:45:00:FE` and `192.168.1.254` outside the current DHCP pool; checks B08 firmware and known LAN/DHCP settings; attempts to delete the dummy reservation immediately after reading back the result. Does not change DHCP server, WAN, DNS, or Wi-Fi. The result is shown in an MQTT diagnostic sensor. If cleanup fails, **do not reboot the router**; review the test status and remove the test MAC before further experiments. Existing static bindings are never deleted.

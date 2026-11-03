@@ -43,3 +43,9 @@
 
 ## 0.4.0
 - Expanded router management UI with gated experimental write operations.
+
+## 0.5.1 - One-time MAC-IP static reservation test
+- Added dedicated MQTT-discovered diagnostic button for a single controlled test of A1 B08 DHCP reservation write commands.
+- Uses original ZTE WebUI fields for DHCP_RESERVATION_ADD/DEL and fixed dummy locally administered MAC plus 192.168.1.254 (outside known DHCP pool).
+- Checks firmware, subnet, DHCP lease range, existing entries, then attempts to verify add and remove only the exact test entry.
+- One-time marker prevents re-execution after reboot. No WAN/DHCP/Wi-Fi setting changes. Test button explicitly triggers a configuration write even with general writes disabled.

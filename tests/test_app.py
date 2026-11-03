@@ -128,7 +128,7 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.0')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.1')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_requires_header(self):
   with self.assertRaises(HTTPError) as err:
