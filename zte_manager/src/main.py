@@ -1,4 +1,4 @@
-"""ZTE Manager v0.4.8: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.4.9: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -10,9 +10,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import RLock
 from time import monotonic, time
 from zte_api import RouterClient, RouterError
-from mqtt_probe import publish_probe
+from mqtt_probe import publish_probe, MQTTProbeError
 
-VERSION = "0.4.8"
+VERSION = "0.4.9"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -353,6 +353,9 @@ def summarize_dhcp_probe(details):
 def publish_dhcp_status(details):
     try:
         publish_probe(summarize_dhcp_probe(details))
+    except MQTTProbeError as exc:
+        # Reason code contains no network address, broker credential or token.
+        print(f"ZTE DHCP MQTT diagnostics unavailable: {str(exc)}", flush=True)
     except Exception as exc:
         # Do not expose broker credentials or error details in the service log.
         print(f"ZTE DHCP MQTT diagnostics unavailable: {type(exc).__name__}", flush=True)
@@ -395,7 +398,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.4.8"
+    server_version = "ZTEManager/0.4.9"
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged

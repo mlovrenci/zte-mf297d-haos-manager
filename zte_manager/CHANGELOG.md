@@ -1,4 +1,8 @@
-## 0.4.8
+## 0.4.9
+- Run Python under S6 `with-contenv` to expose HAOS Supervisor token for read-only MQTT service discovery.
+- Add non-secret MQTT transport error reason codes and token-path tests. No ZTE write changes.
+
+## 0.4.9
 - Startup self-test uses only two read requests instead of the 20+ field inventory, avoiding long timeouts.
 - No router configuration changes.
 

@@ -42,6 +42,22 @@ class MQTTTests(unittest.TestCase):
         self.assertNotIn('router_password',json.dumps(summary))
     def test_no_data_summary(self):
         self.assertEqual(main.summarize_dhcp_probe({'transport_probe':{}})['status'],'unconfirmed')
+    def test_app_launch_inherits_s6_environment(self):
+        docker = (BASE.parent/'Dockerfile').read_text()
+        self.assertIn('CMD ["/command/with-contenv", "python", "-u", "/app/main.py"]', docker)
+
+    def test_missing_supervisor_token_reason(self):
+        with patch.dict(mqtt_probe.os.environ, {}, clear=True):
+            with self.assertRaisesRegex(mqtt_probe.MQTTProbeError, 'supervisor_token_missing'):
+                mqtt_probe.publish_probe({'status':'unconfirmed'})
+
+    def test_legacy_hassio_token_fallback(self):
+        with patch.dict(mqtt_probe.os.environ, {'HASSIO_TOKEN':'mock-token'}, clear=True):
+            with patch.object(mqtt_probe.urllib.request, 'urlopen', side_effect=OSError('mock')) as mocked:
+                with self.assertRaises(OSError):
+                    mqtt_probe.publish_probe({'status':'unconfirmed'})
+                self.assertEqual(mocked.call_args[0][0].get_header('Authorization'),'Bearer mock-token')
+
     def test_optional_settings(self):
         self.assertIn('mqtt_diagnostics_enabled: false',(BASE.parent/'config.yaml').read_text())
         self.assertIn('startup_probe_once: true',(BASE.parent/'config.yaml').read_text())

@@ -11,6 +11,10 @@ import struct
 import time
 import urllib.request
 
+class MQTTProbeError(RuntimeError):
+    """Non-secret diagnostic reason for MQTT transport failures."""
+
+
 CONFIG_TOPIC = "homeassistant/sensor/zte_manager_dhcp_probe/config"
 STATE_TOPIC = "zte_manager/diag/reservations/state"
 ATTRS_TOPIC = "zte_manager/diag/reservations/attributes"
@@ -68,10 +72,10 @@ def _mqtt_publish(service, publications):
             while len(ack) < 4:
                 fragment = conn.recv(4 - len(ack))
                 if not fragment:
-                    raise RuntimeError("MQTT CONNACK missing")
+                    raise MQTTProbeError("mqtt_connack_missing")
                 ack += fragment
             if len(ack) != 4 or ack[:3] != b"\x20\x02\x00" or ack[3] != 0:
-                raise RuntimeError("MQTT connection rejected")
+                raise MQTTProbeError("mqtt_connection_rejected")
             for topic, body, retain in publications:
                 text = json.dumps(body, ensure_ascii=True, separators=(",", ":")) if isinstance(body, (dict, list)) else str(body)
                 flags = 0x31 if retain else 0x30
@@ -87,16 +91,16 @@ class _no_close_wrapper:
 
 
 def publish_probe(summary):
-    token = os.getenv("SUPERVISOR_TOKEN", "")
+    token = os.getenv("SUPERVISOR_TOKEN") or os.getenv("HASSIO_TOKEN", "")
     if not token:
-        raise RuntimeError("Supervisor token unavailable")
+        raise MQTTProbeError("supervisor_token_missing")
     request = urllib.request.Request("http://supervisor/services/mqtt",
         headers={"Authorization": "Bearer " + token, "Accept": "application/json"})
     with urllib.request.urlopen(request, timeout=5) as resp:
         payload = json.loads(resp.read(16384).decode("utf-8"))
     service = payload.get("data") if isinstance(payload.get("data"), dict) else payload
     if not service or not service.get("host") or not service.get("port"):
-        raise RuntimeError("No HAOS MQTT service")
+        raise MQTTProbeError("mqtt_service_unavailable")
     discovery = {
         "name": "ZTE DHCP API probe", "unique_id": "zte_manager_dhcp_probe_v046",
         "state_topic": STATE_TOPIC,
