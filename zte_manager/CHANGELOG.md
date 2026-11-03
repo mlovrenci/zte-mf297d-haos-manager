@@ -1,3 +1,9 @@
+## 0.5.5 - Wi-Fi radio diagnostics (read-only)
+
+- Add a Wi-Fi-tab-only read-only radio probe for band steering, DFS, automatic channel selection, channel and channel width candidates, and guest client counts. Unknown B08 fields are explicitly marked as not returned, not invented as supported.
+- Add a connected Wi-Fi client snapshot grouped by ZTE-reported SSID index, with optional RSSI and link-rate values only if present in the original `station_list` response; do not assume SSID index means 2.4 or 5 GHz.
+- Preserve single-key `station_list` semantics and normal status polling latency. No new router writes; DHCP/DNS and existing write logic unchanged.
+
 ## 0.5.0
 - Display recovered `current_static_addr_list` records in a read-only LAN/DHCP table, with untrusted-value warning.
 - Keep reservation values off MQTT and service logs; no router writes added.

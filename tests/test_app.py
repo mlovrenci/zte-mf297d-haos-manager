@@ -104,6 +104,7 @@ class FakeClient:
   return ({k:groups.get(k,{}) for k in selected} if selected is not None else groups),{}
  def clients(self):return [],{}
  def lan_clients(self):return []
+ def wifi_radio_details(self):return {'fields':{'wifi_lbd_enable':'1'},'field_status':{'wifi_lbd_enable':'returned'},'errors':{}}
  def dhcp_inventory(self):return {'fields_present':{},'data':{},'errors':{}}
  def set(self,*args): return {'result':'accepted'}
 
@@ -128,8 +129,17 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.4')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.5')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
+ def test_wifi_details_is_read_only(self):
+  response=self.fetch('/api/wifi_details')
+  self.assertEqual(response['fields']['wifi_lbd_enable'],'1')
+  self.assertEqual(response['clients'],[])
+ def test_wifi_details_retains_radio_if_station_list_fails(self):
+  with patch.object(FakeClient,'clients',side_effect=RouterError('station_list unavailable')):
+   response=self.fetch('/api/wifi_details')
+  self.assertEqual(response['fields']['wifi_lbd_enable'],'1')
+  self.assertEqual(response['errors']['clients'],'read_unavailable')
  def test_requires_header(self):
   with self.assertRaises(HTTPError) as err:
    self.fetch('/api/prepare',{'operation':'dhcp','values':{}})

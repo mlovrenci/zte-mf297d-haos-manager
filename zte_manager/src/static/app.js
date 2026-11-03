@@ -2,6 +2,15 @@
 const $=id=>document.getElementById(id);
 const escapeHTML=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={cr_version:'Firmware',wa_inner_version:'Interna verzija',hardware_version:'Hardver',web_version:'WebUI',Language:'Jezik',modem_main_state:'Modem',ppp_status:'Internet',network_type:'Mobilna mreža',network_provider:'Operater',wan_ipaddr:'WAN IP',pin_status:'SIM',wan_apn:'APN',pdp_type:'PDP',apn_interface_version:'APN API',opms_wan_mode:'WAN način',BearerPreference:'Mrežni način',dial_mode:'Dial mode',simcard_roam:'Roaming',lte_rsrp:'RSRP',lte_rsrq:'RSRQ',lte_rssi:'RSSI',lte_snr:'SINR',Z_SINR:'ZTE SINR',wan_active_band:'LTE band',wan_active_channel:'Kanal',wan_lte_ca:'LTE agregacija',lte_ca_pcell_band:'P-Cell band',lte_ca_scell_band:'S-Cell band',cell_id:'Cell ID',lan_ipaddr:'LAN IP',lan_netmask:'Maska',router_mode_gateway:'Gateway',LocalDomain:'Lokalna domena',mac_address:'LAN MAC',dhcpEnabled:'DHCP status',dhcp_enable:'DHCP alt.',dhcpStart:'Početak poola',dhcpEnd:'Kraj poola',dhcpLease_hour:'Lease (sati)',dhcpLeaseTime:'Lease',dhcp_lease:'Lease (alt.)',dhcpLease:'DHCP lease',dns_mode:'WAN DNS način',prefer_dns_manual:'WAN primarni DNS',standby_dns_manual:'WAN sekundarni DNS',dns_primary_dns:'Primarni DNS',dns_secondary_dns:'Sekundarni DNS',wifi_onoff_state:'Wi-Fi stanje',wifi_chip1_ssid1_ssid:'SSID 2,4 GHz',wifi_chip2_ssid1_ssid:'SSID 5 GHz',wifi_chip1_ssid1_auth_mode:'2,4 GHz zaštita',wifi_chip2_ssid1_auth_mode:'5 GHz zaštita',wifi_chip1_ssid1_switch_onoff:'2,4 GHz uključen',wifi_chip2_ssid1_switch_onoff:'5 GHz uključen',wifi_chip1_ssid2_ssid:'Guest 2,4 GHz',wifi_chip2_ssid2_ssid:'Guest 5 GHz',wifi_chip1_ssid2_switch_onoff:'Guest 2,4 GHz aktivan',wifi_chip2_ssid2_switch_onoff:'Guest 5 GHz aktivan',guest_switch:'Gostujući Wi-Fi',wifi_chip1_ssid1_access_sta_num:'Klijenti 2,4 GHz',wifi_chip2_ssid1_access_sta_num:'Klijenti 5 GHz',realtime_rx_thrpt:'Download (API units)',realtime_tx_thrpt:'Upload (API units)',realtime_rx_thrp:'Download (stari API naziv)',realtime_tx_thrp:'Upload (stari API naziv)',realtime_rx_bytes:'RX bajtovi',realtime_tx_bytes:'TX bajtovi',monthly_rx_bytes:'Mjesečni RX',monthly_tx_bytes:'Mjesečni TX',total_rx_bytes:'Ukupni RX',total_tx_bytes:'Ukupni TX',monthly_time:'Mjesečno vrijeme',upnp_enable:'UPnP',upnp_status:'UPnP status',dmz_switch:'DMZ aktivan',dmz_ip_address:'DMZ IP',nat_type:'NAT tip',port_mapping_enable:'Port forwarding',ipv6_enable:'IPv6',ipv6_wan_status:'IPv6 WAN',rj45_state:'LAN port',uptime:'Uptime',sys_uptime:'Sistem uptime',system_uptime:'Uptime',router_uptime:'Uptime',sntp_timezone:'Vremenska zona',sms_data_total:'SMS broj'};
+Object.assign(labels,{
+  wifi_lbd_enable:'Band steering (API)',wifi_dfs_status:'DFS stanje (API)',
+  wifi_eacs_enable:'Automatski odabir kanala (API)',wifi_enable:'Wi-Fi radio (API)',
+  wifi_5g_enable:'5 GHz radio (API)',wifi_chip1_channel:'2,4 GHz kanal (kandidat)',
+  wifi_chip2_channel:'5 GHz kanal (kandidat)',wifi_chip1_bandwidth:'2,4 GHz širina kanala (API)',
+  wifi_chip2_bandwidth:'5 GHz širina kanala (API)',
+  wifi_chip1_ssid2_access_sta_num:'Guest 2,4 GHz klijenti',
+  wifi_chip2_ssid2_access_sta_num:'Guest 5 GHz klijenti'
+});
 let state=null,meta=null,plan=null,clientList=[],wiredList=[],activeHours=24,lastError=null;
 function notice(s,bad=false){$('message').textContent=s;$('message').classList.toggle('warning',bad)}
 async function req(path,data){const headers=data?{'Content-Type':'application/json','X-ZTE-Action':'yes','X-ZTE-CSRF':meta?.csrf||''}:{Accept:'application/json'};const r=await fetch('api/'+path,{method:data?'POST':'GET',cache:'no-store',credentials:'same-origin',headers,body:data?JSON.stringify(data):undefined});let x;try{x=await r.json()}catch{throw Error('ZTE Manager nije vratio JSON')};if(!r.ok)throw Error(x.error||'HTTP '+r.status);return x}
@@ -38,7 +47,42 @@ $('reservationAddForm').onsubmit=e=>{
 };
 function prepare(op,values){notice('Pripremam promjenu '+op+'…');req('prepare',{operation:op,values}).then(p=>{plan=p;$('planText').textContent=p.summary;$('confirmPhrase').textContent=p.confirm;$('confirmInput').value='';$('confirmDialog').classList.remove('hidden');$('confirmInput').focus();notice('Zahtjev nije poslan routeru: potrebno je potvrditi operaciju.')}).catch(e=>notice(e.message,true))}
 $('dhcpForm').onsubmit=e=>{e.preventDefault();prepare('dhcp',{enabled:$('dhcpEnable').checked,start:$('poolStart').value,end:$('poolEnd').value,lease_hours:Number($('lease').value),recovery_ready:$('dhcpRecovery').checked})};$('dnsForm').onsubmit=e=>{e.preventDefault();prepare('dns',{mode:$('dnsMode').value,primary:$('dnsPrimary').value,secondary:$('dnsSecondary').value})};$('wifiPowerForm').onsubmit=e=>{e.preventDefault();prepare('wifi_power',{enabled:$('wifiPower').checked,recovery_ready:$('wifiRecovery').checked})};$('wanLinkForm').onsubmit=e=>{e.preventDefault();prepare('wan_link',{connected:$('wanLink').value==='connect',recovery_ready:$('wanRecovery').checked})};$('wifiForm').onsubmit=e=>{e.preventDefault();prepare('wifi_primary',{ssid:$('ssid').value,wifi_password:$('wifiPass').value});$('wifiPass').value=''};$('bearerForm').onsubmit=e=>{e.preventDefault();prepare('bearer',{mode:$('bearer').value})};$('cancel').onclick=()=>{plan=null;$('confirmDialog').classList.add('hidden')};$('commit').onclick=async()=>{if(!plan)return;$('commit').disabled=true;try{const isStatic=plan.kind==='static';const p=await req(isStatic?'static_apply':'apply',{plan_id:plan.plan_id,confirmation:$('confirmInput').value});$('confirmDialog').classList.add('hidden');plan=null;if(isStatic){notice(p.status==='verified'?'Rezervacija verificirana u ZTE listi.':'Status promjene nije potvrđen: '+p.note,p.status!=='verified');dhcpInventory()}else{notice('Zahtjev prihvaćen, stvarno stanje treba ponovno očitati: '+p.note);setTimeout(refresh,4000)}}catch(e){notice('Primjena nije potvrđena: '+e.message,true);$('confirmDialog').classList.add('hidden');plan=null}finally{$('commit').disabled=false}};
-function renderClients(){let q=$('clientSearch').value.trim().toLowerCase(),filtered=clientList.filter(x=>Object.values(x).some(v=>String(v).toLowerCase().includes(q)));$('clientCount').textContent=`${filtered.length} prikazano · ${clientList.length} ukupno (API povezanih klijenata, ne svi DHCP leaseovi)`;$('clientsbox').innerHTML=filtered.length?filtered.map(c=>`<div class="client"><div><b>${escapeHTML(c.hostname||'Nepoznati uređaj')}</b><small>${escapeHTML(c.mac_addr||'—')} · Wi-Fi ${escapeHTML(c.ssid_index||'—')}</small></div><span class="ip">${escapeHTML(c.ip_addr||'—')}</span></div>`).join(''):'<p class="hint">Nema rezultata. Prazan API odgovor ne dokazuje da uređaji nisu spojeni.</p>'}
+function wifiClientRow(c){
+  const metrics=['rssi','signal','signal_strength','rx_rate','tx_rate']
+    .filter(k=>c[k]!==undefined&&c[k]!==null&&c[k]!=='')
+    .map(k=>`${k}: ${c[k]}`).join(' · ');
+  return `<div class="client"><div><b>${escapeHTML(c.hostname||'Nepoznati uređaj')}</b><small>${escapeHTML(c.mac_addr||'—')} · SSID indeks ${escapeHTML(c.ssid_index??'—')}${metrics?' · '+escapeHTML(metrics):''}</small></div><span class="ip">${escapeHTML(c.ip_addr||'—')}</span></div>`;
+}
+function renderClients(){
+  let q=$('clientSearch').value.trim().toLowerCase(),filtered=clientList.filter(x=>Object.values(x).some(v=>String(v).toLowerCase().includes(q)));
+  $('clientCount').textContent=`${filtered.length} prikazano · ${clientList.length} ukupno (API povezanih klijenata, ne svi DHCP leaseovi)`;
+  $('clientsbox').innerHTML=filtered.length?filtered.map(wifiClientRow).join(''):'<p class="hint">Nema rezultata. Prazan API odgovor ne dokazuje da uređaji nisu spojeni.</p>';
+}
+async function wifiDiagnostics(){
+  const button=$('wifiDiagRefresh');button.disabled=true;
+  $('wifiRadioStatus').textContent='Očitavam dostupne radio parametre…';
+  $('wifiClientCount').textContent='Očitavam spojene Wi-Fi klijente…';
+  try{
+    const result=await req('wifi_details');
+    const fields=result.fields||{}, returned=Object.keys(fields);
+    tiles('wifiRadio',fields);
+    $('wifiRadioStatus').textContent=returned.length
+      ? `${returned.length} potvrđenih read polja · nepodržana/prazna polja izostavljena · bez write operacija`
+      : 'B08 nije vratio napredne Wi-Fi vrijednosti. To ne potvrđuje ni dostupnost ni nedostupnost postavke.';
+    if(Object.keys(result.errors||{}).length){
+      $('wifiRadioStatus').textContent+=' · Dio API upita nije uspio.';
+    }
+    const clients=Array.isArray(result.clients)?result.clients:[];
+    const countByIndex={};
+    clients.forEach(c=>{const key=String(c.ssid_index??'nepoznat');countByIndex[key]=(countByIndex[key]||0)+1});
+    const breakdown=Object.entries(countByIndex).map(([index,count])=>`indeks ${index}: ${count}`).join(' · ');
+    $('wifiClientCount').textContent=result.errors?.clients
+      ? 'ZTE nije vratio station_list; broj klijenata nije poznat.'
+      : `${clients.length} prijavljenih Wi-Fi klijenata${breakdown?' · '+breakdown:''}`;
+    $('wifiClientList').innerHTML=clients.length?clients.map(wifiClientRow).join(''):'<p class="hint">ZTE station_list je prazan ili nije dostupan; ne znači da su svi Wi-Fi uređaji odspojeni.</p>';
+  }catch(e){$('wifiRadioStatus').textContent='Wi-Fi dijagnostika nije dostupna: '+e.message;$('wifiClientCount').textContent='Nije moguće potvrditi klijente.';$('wifiClientList').textContent='—';}
+  finally{button.disabled=false}
+}
 function renderWired(){
   $('wiredCount').textContent=`${wiredList.length} uređaja iz lan_station_list (ne moraju biti svi DHCP leaseovi)`;
   $('wiredbox').innerHTML=wiredList.length?wiredList.map(c=>`<div class="client"><div><b>${escapeHTML(c.hostname||'Nepoznati uređaj')}</b><small>${escapeHTML(c.mac_addr||'—')}</small></div><span class="ip">${escapeHTML(c.ip_addr||'—')}</span></div>`).join(''):'<p class="hint">ZTE nije vratio LAN klijente. To ne dokazuje da nisu spojeni.</p>';
@@ -88,4 +132,4 @@ async function dhcpInventory(){
 }
 $('reservationsRefresh').onclick=dhcpInventory;
 $('dhcpDnsRefresh').onclick=dhcpInventory;
-$('clientSearch').oninput=renderClients;$('clientsRefresh').onclick=clients;$('diagRefresh').onclick=diagnostics;$('diagCopy').onclick=()=>navigator.clipboard.writeText($('diag').textContent).then(()=>notice('Anonimizirana dijagnostika kopirana.')).catch(()=>notice('Kopiranje nije dostupno.',true));$('reload').onclick=refresh;document.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{activeHours=Number(b.dataset.hours);document.querySelectorAll('[data-hours]').forEach(x=>x.classList.toggle('active',Number(x.dataset.hours)===activeHours));history(activeHours)});document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('hidden',x.id!==b.dataset.tab));if(b.dataset.tab==='clients')clients();if(b.dataset.tab==='diagnostics')diagnostics();if(b.dataset.tab==='traffic')history(activeHours)});refresh();
+$('clientSearch').oninput=renderClients;$('clientsRefresh').onclick=clients;$('wifiDiagRefresh').onclick=wifiDiagnostics;$('diagRefresh').onclick=diagnostics;$('diagCopy').onclick=()=>navigator.clipboard.writeText($('diag').textContent).then(()=>notice('Anonimizirana dijagnostika kopirana.')).catch(()=>notice('Kopiranje nije dostupno.',true));$('reload').onclick=refresh;document.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{activeHours=Number(b.dataset.hours);document.querySelectorAll('[data-hours]').forEach(x=>x.classList.toggle('active',Number(x.dataset.hours)===activeHours));history(activeHours)});document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('hidden',x.id!==b.dataset.tab));if(b.dataset.tab==='clients')clients();if(b.dataset.tab==='wifi')wifiDiagnostics();if(b.dataset.tab==='diagnostics')diagnostics();if(b.dataset.tab==='traffic')history(activeHours)});refresh();

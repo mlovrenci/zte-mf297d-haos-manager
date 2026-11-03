@@ -36,6 +36,18 @@ GROUPS = {
     "wifi": ["wifi_onoff_state", "wifi_chip1_ssid1_ssid", "wifi_chip2_ssid1_ssid", "wifi_chip1_ssid1_auth_mode", "wifi_chip2_ssid1_auth_mode", "wifi_chip1_ssid1_switch_onoff", "wifi_chip2_ssid1_switch_onoff", "wifi_chip1_ssid1_max_access_num", "wifi_chip2_ssid1_max_access_num", "guest_switch", "wifi_chip1_ssid1_access_sta_num", "wifi_chip2_ssid1_access_sta_num", "PASSWORD_ENCODE"],
 }
 
+# Read-only candidates found on related ZTE Goform firmware. Their presence on
+# the A1 MF297D B08 has NOT been verified. Keep this out of GROUPS so routine
+# status refreshes and background sampling do not issue extra radio probes.
+# Never add password, PSK, WPS PIN or session fields here.
+WIFI_DETAIL_PROBES = {
+    "steering": ["wifi_lbd_enable", "wifi_dfs_status", "wifi_eacs_enable", "wifi_enable", "wifi_5g_enable"],
+    "channels": ["wifi_chip1_channel", "wifi_chip2_channel", "wifi_chip1_bandwidth", "wifi_chip2_bandwidth"],
+    "guest_clients": ["wifi_chip1_ssid2_access_sta_num", "wifi_chip2_ssid2_access_sta_num"],
+}
+
+WIFI_CLIENT_METRICS = ("rssi", "signal", "signal_strength", "rx_rate", "tx_rate")
+
 
 class RouterClient:
     def __init__(self, router_ip, timeout=6):
@@ -115,6 +127,31 @@ class RouterClient:
                 errors[name] = str(e)
         return result, errors
 
+    def wifi_radio_details(self):
+        """Explicit, bounded read-only probe; never assumes B08 support.
+
+        Probes are separated so an unsupported channel field cannot mask
+        steering/guest values. Return only allowlisted scalar fields.
+        """
+        fields, errors = {}, {}
+        for name, keys in WIFI_DETAIL_PROBES.items():
+            try:
+                raw = self.get(keys)
+                if not isinstance(raw, dict):
+                    raise RouterError("Neispravan Wi-Fi odgovor")
+                for key in keys:
+                    value = raw.get(key)
+                    if isinstance(value, (str, int, float, bool)) and value != "" and len(str(value)) <= 64:
+                        fields[key] = value
+            except RouterError:
+                errors[name] = "read_unavailable"
+        return {
+            "fields": fields,
+            "field_status": {key: ("returned" if key in fields else "not_returned")
+                             for keys in WIFI_DETAIL_PROBES.values() for key in keys},
+            "errors": errors,
+        }
+
     def clients(self):
         # IMPORTANT: MF297D / A1 B08: v0.1 queried station_list *alone*.
         # v0.2 combined it with host_name_web/mac_addr_web/ip_addr_web,
@@ -130,8 +167,18 @@ class RouterClient:
                 result = []
         if not isinstance(result, list):
             result = []
-        clients = [{k: item.get(k, "") for k in ("hostname", "ip_addr", "mac_addr", "ssid_index")}
-                   for item in result[:128] if isinstance(item, dict)]
+        clients = []
+        for item in result[:128]:
+            if not isinstance(item, dict):
+                continue
+            row = {k: item.get(k, "") for k in ("hostname", "ip_addr", "mac_addr", "ssid_index")}
+            # Optional metrics are exposed only when actually present in the
+            # original station_list. Do not guess the SSID-index/band mapping.
+            for key in WIFI_CLIENT_METRICS:
+                value = item.get(key)
+                if isinstance(value, (str, int, float)) and value != "" and len(str(value)) <= 32:
+                    row[key] = value
+            clients.append(row)
         return clients, {}
 
     def lan_clients(self):

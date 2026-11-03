@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.4: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.5: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -16,7 +16,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.4"
+VERSION = "0.5.5"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -508,6 +508,16 @@ class Handler(BaseHTTPRequestHandler):
                     clients, details = client.clients()
                     wired = client.lan_clients()
                 return self.response(200, {"clients":clients,"wired":wired,"details":details})
+            if path == "/api/wifi_details":
+                with ROUTER_LOCK:
+                    client = connect(o)
+                    details = client.wifi_radio_details()
+                    try:
+                        clients, _ = client.clients()  # station_list stays single-key
+                    except RouterError:
+                        clients = []
+                        details["errors"]["clients"] = "read_unavailable"
+                return self.response(200, {**details, "clients": clients})
             if path == "/api/dhcp_details":
                 with ROUTER_LOCK:
                     client = connect(o)
