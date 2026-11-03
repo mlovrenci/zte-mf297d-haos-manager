@@ -44,6 +44,7 @@ class MQTTTests(unittest.TestCase):
         self.assertEqual(main.summarize_dhcp_probe({'transport_probe':{}})['status'],'unconfirmed')
     def test_optional_settings(self):
         self.assertIn('mqtt_diagnostics_enabled: false',(BASE.parent/'config.yaml').read_text())
+        self.assertIn('startup_probe_once: true',(BASE.parent/'config.yaml').read_text())
         self.assertIn('mqtt:want',(BASE.parent/'config.yaml').read_text())
         self.assertNotIn('homeassistant_api: true',(BASE.parent/'config.yaml').read_text())
     def test_tcp_mqtt_publishes_discovery_and_summary(self):

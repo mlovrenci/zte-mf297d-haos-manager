@@ -1,5 +1,5 @@
 name: "ZTE Manager (MF297D)"
-version: "0.4.6"
+version: "0.4.7"
 slug: "zte_manager"
 description: "MF297D: local HAOS control panel, controlled Goform writes, LTE, LAN, Wi-Fi and diagnostics"
 arch:
@@ -22,6 +22,7 @@ options:
   expected_firmware: "CR_A1HRMF297DV1.0.0B08"
   monitor_enabled: false
   mqtt_diagnostics_enabled: false
+  startup_probe_once: true
   monitor_interval_seconds: 300
   write_enabled: false
   allow_experimental_writes: false
@@ -37,6 +38,7 @@ schema:
   expected_firmware: str
   monitor_enabled: bool
   mqtt_diagnostics_enabled: bool
+  startup_probe_once: bool
   monitor_interval_seconds: int(120,3600)
   write_enabled: bool
   allow_experimental_writes: bool

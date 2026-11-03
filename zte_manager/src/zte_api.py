@@ -57,7 +57,7 @@ class RouterClient:
         headers = {"Referer": self.base + "/", "Origin": self.base,
                    "X-Requested-With": "XMLHttpRequest",
                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                   "User-Agent": "ZTE-Manager/0.4.6"}
+                   "User-Agent": "ZTE-Manager/0.4.7"}
         encoded = None
         if data is not None:
             encoded = urllib.parse.urlencode(data).encode()
@@ -155,7 +155,7 @@ class RouterClient:
         headers = {"Referer": self.base + "/", "Origin": self.base,
                    "X-Requested-With": "XMLHttpRequest",
                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                   "User-Agent": "ZTE-Manager/0.4.6"}
+                   "User-Agent": "ZTE-Manager/0.4.7"}
         data = None
         if form is not None:
             data = urllib.parse.urlencode(form).encode("ascii")

@@ -1,3 +1,8 @@
+## 0.4.7
+- One read-only DHCP inventory self-test at app startup, enabled by default via `startup_probe_once`.
+- Can be disabled in HAOS app options. Existing secrets/config remain untouched during update.
+- No router write changes.
+
 # Changelog
 
 ## 0.4.6

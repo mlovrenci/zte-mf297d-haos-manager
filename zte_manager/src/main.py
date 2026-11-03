@@ -1,4 +1,4 @@
-"""ZTE Manager v0.4.6: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.4.7: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -12,7 +12,7 @@ from time import monotonic, time
 from zte_api import RouterClient, RouterError
 from mqtt_probe import publish_probe
 
-VERSION = "0.4.6"
+VERSION = "0.4.7"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -42,6 +42,7 @@ def options():
             "apn": obj.get("allow_apn_changes") is True,
             "history": obj.get("monitor_enabled") is True,
             "mqtt_diagnostics": obj.get("mqtt_diagnostics_enabled") is True,
+            "mqtt_startup_probe": obj.get("startup_probe_once", True) is True,
             "interval": min(3600, max(120, int(obj.get("monitor_interval_seconds", 300)))),
             "verified_writes": obj.get("b08_write_verified") is True,
             "experimental_writes": obj.get("allow_experimental_writes") is True,
@@ -362,7 +363,7 @@ def startup_dhcp_probe():
     threading.Event().wait(6)
     try:
         o = options()
-        if not o.get("mqtt_diagnostics"):
+        if not (o.get("mqtt_diagnostics") or o.get("mqtt_startup_probe")):
             return
         with ROUTER_LOCK:
             client = connect(o)
@@ -393,7 +394,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.4.6"
+    server_version = "ZTEManager/0.4.7"
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged
