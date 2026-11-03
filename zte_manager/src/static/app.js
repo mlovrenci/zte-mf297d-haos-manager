@@ -19,10 +19,7 @@ function hero(k,v,caption=''){return `<article class="hero"><small>${escapeHTML(
 function renderHero(g){const w=g.internet||{},s=g.signal||{},d=g.dhcp||{},wf=g.wifi||{};$('heroCards').innerHTML=hero('WAN',w.ppp_status||'—',w.network_provider||'')+hero('RSRP',s.lte_rsrp?`${s.lte_rsrp} dBm`:'—',s.wan_active_band||'')+hero('Wi-Fi',wf.wifi_onoff_state??'—',wf.wifi_chip1_ssid1_ssid||'')+hero('DHCP',String(d.dhcpEnabled)==='1'?'ON':String(d.dhcpEnabled)==='0'?'OFF':'Nepoznato',d.dhcpStart&&d.dhcpEnd?`${d.dhcpStart} – ${d.dhcpEnd}`:'')}
 function caps(c){const names={status:'Status', '4g':'Mobilna veza',signal:'LTE signal',lan:'LAN',dhcp:'DHCP',dns:'DNS',wifi:'Wi-Fi',wifi_extra:'Wi-Fi Advanced',traffic:'Promet',nat:'NAT / IPv6',system:'Sustav'};$('caps').innerHTML=Object.entries(c||{}).map(([k,v])=>`<div class="cap ${v.status==='available'?'available':v.status==='partial'?'partial':'missing'}"><strong>${escapeHTML(names[k]||k)}</strong><br><i>${v.status==='available'?'Read dostupno':v.status==='partial'?'Djelomično dostupno':'Nema podatka'}</i><small>${escapeHTML((v.detail? v.detail+' · ':'')+((v.fields||[]).join(', ')||'Nije potvrđeno'))}</small></div>`).join('')}
 async function refresh(){notice('Očitavam status i konfiguraciju…');try{meta=await req('meta');const result=await req('state');state=result.groups;const g=state;tiles('overview',{...g.device,...g.internet});tiles('signal',g.signal);tiles('internetinfo',g.internet);tiles('radioinfo',g.signal);tiles('trafficinfo',g.traffic);tiles('dhcpinfo',{...g.lan,...g.dhcp});tiles('dnsinfo',g.dns);tiles('wifiinfo',g.wifi);tiles('wifiExtra',g.wifi_extra);tiles('firewallinfo',{...g.network_extra});tiles('systeminfo',g.device);tiles('systemextra',g.system_extra);renderHero(g);caps(result.capabilities||{});
-$('writeStatus').textContent = meta.write_enabled && meta.experimental_writes
-    ? 'Write eksperimentalno otključan · A1 B08 nije neovisno verificiran · potvrda za svaku promjenu'
-    : 'Read-only: otključavanje samo u HAOS App Configuration · bez automatskih promjena';
-$('writeStatus').classList.toggle('enabled', !!(meta.write_enabled && meta.experimental_writes));
+renderWriteMode();
 $('wanMode').value=['auto_dial','manual_dial'].includes(g.internet?.ConnectionMode) ? g.internet.ConnectionMode : 'auto_dial';
 $('upnpEnable').checked = String(g.network_extra?.upnp_enable || g.network_extra?.upnp_setting_option)==='1';
 $('dmzEnable').checked = String(g.network_extra?.DMZEnable || g.network_extra?.dmz_switch)==='1';
@@ -123,38 +120,23 @@ async function dhcpInventory(){
   try {
     const data=await req('dhcp_details');
     const res=data.data?.reservations||{}, dns=data.data?.dhcp_client_dns||{};
-    const entries=Object.entries(res);
-    const statuses=data.field_status?.reservations||{}, dStatuses=data.field_status?.dhcp_client_dns||{};
-    const recovered=data.transport_probe||{};
-    const recoveredTop=Object.values(recovered).find(x=>x.status==='field_present_nonempty') || Object.values(recovered).find(x=>x.status==='field_present_empty');
-    const foundNonempty=entries.some(([,val])=>Array.isArray(val)&&val.length>0);
-    const emptyList=Object.entries(statuses).filter(([,v])=>v==='returned_empty_list').map(([k])=>k);
-    if(foundNonempty){
-      const rows=res.current_static_addr_list;
-      if(Array.isArray(rows)&&rows.length){
-        const columns=[...new Set(rows.flatMap(row=>Object.keys(row||{})))].slice(0,16);
-        const head=columns.map(key=>`<th>${escapeHTML(key)}</th>`).join('');
-        const body=rows.map((row,i)=>`<tr><td>${i+1}</td>${columns.map(key=>`<td>${escapeHTML(String(row?.[key]??''))}</td>`).join('')}<td><button type="button" class="danger" data-delete-static="${escapeHTML(row?.mac||'')}" aria-label="Obriši rezervaciju ${escapeHTML(row?.mac||'')}">Obriši</button></td></tr>`).join('');
-        $('reservationsBox').innerHTML=`<p class="hint reservation-wide">ZTE current_static_addr_list: ${rows.length} rezervacija. A1 B08 write verificiran; za Add/Delete potrebna je potvrda.</p><div class="reservation-wide reservation-scroll"><table class="reservation-table"><thead><tr><th>#</th>${head}<th>Radnja</th></tr></thead><tbody>${body}</tbody></table></div>`;
-        $('reservationsBox').querySelectorAll('[data-delete-static]').forEach(btn=>btn.onclick=()=>prepareStatic('delete',{mac:btn.dataset.deleteStatic}));
-        $('staticCapacity').textContent=`Zauzeto ${rows.length} od 10 rezervacija · ${Math.max(0,10-rows.length)} slobodnih mjesta.`;
-      }else{
-        $('reservationsBox').innerHTML=entries.filter(([,v])=>Array.isArray(v)&&v.length).map(([field,val])=>`<article class="tile"><div class="key">${escapeHTML(field)}</div><div class="value">${escapeHTML(JSON.stringify(val))}</div></article>`).join('');
-      }
-    } else if(emptyList.length){
-      $('reservationsBox').textContent=`API je vratio praznu listu (${emptyList.join(', ')}). Možda nema rezervacija ili firmware vraća prazno za nepodržane nazive. Write još nije potvrđen.`;
-    } else $('reservationsBox').textContent='Nije pronađena popunjena lista rezervacija. Detalji po polju slijede; izostanak odgovora ne dokazuje da rezervacije nisu podržane.';
-    if(recoveredTop){const r=document.createElement('pre');r.className='hint';r.textContent='Oporavljeni B08 odgovor: '+JSON.stringify(recoveredTop,null,2)+'\nNapomena: oporavljeni odgovor nije dokaz podrške za write.';$('reservationsBox').appendChild(r);}
-    const diag=document.createElement('pre');diag.className='hint';diag.textContent=JSON.stringify(statuses,null,2);$('reservationsBox').appendChild(diag);
-    if(data.transport_probe){
-      const detail=document.createElement('pre');detail.className='hint';
-      detail.textContent='Dodatni read-only GET/POST test: kodiranje i JSON sintaksa (bez MAC/IP podataka):\n'+JSON.stringify(data.transport_probe,null,2);
-      $('reservationsBox').appendChild(detail);
+    const dStatuses=data.field_status?.dhcp_client_dns||{};
+    const rows=res.current_static_addr_list;
+    $('staticCapacity').textContent='Kapacitet nije moguće potvrditi.';
+    if(Array.isArray(rows)&&rows.every(row=>row&&typeof row==='object'&&!Array.isArray(row))){
+      const columns=[['hostname','Naziv uređaja'],['ip','IP adresa'],['mac','MAC adresa'],['domain','Domena']];
+      const head=columns.map(([,label])=>`<th>${label}</th>`).join('');
+      const body=rows.map((row,i)=>`<tr><td>${i+1}</td>${columns.map(([key])=>`<td>${escapeHTML(String(row[key]??''))}</td>`).join('')}<td><button type="button" class="danger" data-delete-static="${escapeHTML(row.mac||'')}" aria-label="Obriši rezervaciju ${escapeHTML(row.mac||'')}">Obriši</button></td></tr>`).join('');
+      $('reservationsBox').innerHTML=rows.length?`<div class="reservation-wide reservation-scroll"><table class="reservation-table"><thead><tr><th>#</th>${head}<th>Radnja</th></tr></thead><tbody>${body}</tbody></table></div>`:'<p class="hint">Router je vratio praznu listu rezervacija.</p>';
+      $('reservationsBox').querySelectorAll('[data-delete-static]').forEach(btn=>btn.onclick=()=>prepareStatic('delete',{mac:btn.dataset.deleteStatic}));
+      $('staticCapacity').textContent=`Zauzeto ${rows.length} od 10 rezervacija · ${Math.max(0,10-rows.length)} slobodnih mjesta.`;
+    }else{
+      $('reservationsBox').textContent='Rezervacije nije moguće očitati. Pokušaj ponovno.';
     }
     tiles('dhcpDnsBox',dns);
     if(!Object.keys(dns).length) $('dhcpDnsBox').textContent='DHCP DNS opcija 6 nije potvrđena. WAN DNS nije isto.';
     const dnsdiag=document.createElement('pre');dnsdiag.className='hint';dnsdiag.textContent=JSON.stringify(dStatuses,null,2);$('dhcpDnsBox').appendChild(dnsdiag);
-  } catch(e){$('reservationsBox').textContent=e.message;$('dhcpDnsBox').textContent=e.message;}
+  } catch(e){$('staticCapacity').textContent='Kapacitet nije moguće potvrditi.';$('reservationsBox').textContent='Očitavanje rezervacija nije uspjelo. Pokušaj ponovno.';$('dhcpDnsBox').textContent=e.message;}
 }
 $('reservationsRefresh').onclick=dhcpInventory;
 $('dhcpDnsRefresh').onclick=dhcpInventory;
@@ -171,5 +153,25 @@ function openTab(tab){
 }
 document.querySelectorAll('[data-group]').forEach(b=>b.onclick=()=>openTab(lastTabs[b.dataset.group]));
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
-$('writeGuideLink').onclick=e=>{e.preventDefault();openTab('system');$('writeGuide').scrollIntoView({behavior:'smooth'})};
+function renderWriteMode(){
+  const enabled=Boolean(meta?.write_enabled&&meta?.experimental_writes);
+  $('writeStatus').textContent=enabled
+    ? 'Write mode uključen · svaka promjena traži zasebnu potvrdu'
+    : 'Read-only · klikom uključi write mode za pripremu promjena';
+  if(meta?.write_mode_source==='session')$('writeStatus').textContent+=' · do restarta App-a';
+  $('writeStatus').classList.toggle('enabled',enabled);
+  $('writeModeToggle').textContent=enabled?'Isključi write mode':'Uključi write mode';
+  $('writeModeToggle').setAttribute('aria-pressed',String(enabled));
+  $('writeModeToggle').disabled=!meta;
+}
+$('writeModeToggle').onclick=async()=>{
+  if(!meta)return;
+  const button=$('writeModeToggle');button.disabled=true;
+  try{
+    const result=await req('write_mode',{enabled:!(meta.write_enabled&&meta.experimental_writes)});
+    Object.assign(meta,result);plan=null;$('confirmDialog').classList.add('hidden');
+    notice(result.write_enabled?'Write mode uključen. Router nije promijenjen; svaku radnju potvrđuješ zasebno.':'Write mode isključen. Pripremljene radnje su poništene.');
+  }catch(e){notice('Promjena write moda nije potvrđena: '+e.message,true)}
+  finally{renderWriteMode()}
+};
 refresh();

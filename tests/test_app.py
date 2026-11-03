@@ -110,6 +110,7 @@ class FakeClient:
 
 class HTTPTests(unittest.TestCase):
  def setUp(self):
+  self._write_override=main.WRITE_OVERRIDE;main.WRITE_OVERRIDE=None
   self.temp=tempfile.TemporaryDirectory()
   self.options=Path(self.temp.name)/'options.json'
   self.options.write_text(json.dumps({'router_ip':'192.168.1.1','router_password':'test','write_enabled':True,'expected_firmware':FIRMWARE,'allow_disruptive_changes':False,'allow_apn_changes':False,'b08_write_verified':True,'allow_experimental_writes':True}))
@@ -123,6 +124,7 @@ class HTTPTests(unittest.TestCase):
  def tearDown(self):
   self.server.shutdown();self.server.server_close();self.thread.join(2)
   self.mock.stop();main.OPTIONS=self._a;main.AUDIT=self._b
+  main.WRITE_OVERRIDE=self._write_override
   self.temp.cleanup()
  def fetch(self,path,body=None,headers=None):
   req=Request(self.addr+path,data=json.dumps(body).encode() if body is not None else None,headers=headers or {})
@@ -144,6 +146,36 @@ class HTTPTests(unittest.TestCase):
    response=self.fetch('/api/wifi_details')
   self.assertEqual(response['fields']['wifi_lbd_enable'],'1')
   self.assertEqual(response['errors']['clients'],'read_unavailable')
+ def test_write_mode_switch_is_local_and_invalidates_plans(self):
+  h={'X-ZTE-Action':'yes','X-ZTE-CSRF':main.CSRF}
+  before=self.options.read_bytes()
+  main.PLANS['old']={};main.STATIC_PLANS['old']={}
+  with patch.object(main,'connect') as connect:
+   result=self.fetch('/api/write_mode',{'enabled':False},h)
+   self.assertFalse(result['write_enabled'])
+   self.assertFalse(main.options()['write_enabled'])
+   self.assertFalse(main.PLANS);self.assertFalse(main.STATIC_PLANS)
+   for endpoint in ('prepare','apply','static_prepare','static_apply'):
+    with self.assertRaises(HTTPError):self.fetch('/api/'+endpoint,{},h)
+   self.assertTrue(self.fetch('/api/write_mode',{'enabled':True},h)['write_enabled'])
+   connect.assert_not_called()
+  self.assertEqual(self.options.read_bytes(),before)
+  self.assertFalse(main.options()['disruptive'])
+  self.assertFalse(main.options()['allow_reboot'])
+ def test_write_mode_requires_csrf_and_boolean(self):
+  with self.assertRaises(HTTPError) as err:self.fetch('/api/write_mode',{'enabled':True})
+  self.assertEqual(err.exception.code,403)
+  h={'X-ZTE-Action':'yes','X-ZTE-CSRF':main.CSRF}
+  with self.assertRaises(HTTPError):self.fetch('/api/write_mode',{'enabled':'true'},h)
+  self.assertIsNone(main.WRITE_OVERRIDE)
+ def test_write_mode_overrides_locked_config_without_persisting(self):
+  h={'X-ZTE-Action':'yes','X-ZTE-CSRF':main.CSRF}
+  config=json.loads(self.options.read_text());config['write_enabled']=False;config['allow_experimental_writes']=False
+  self.options.write_text(json.dumps(config))
+  self.fetch('/api/write_mode',{'enabled':True},h)
+  self.assertTrue(main.options()['write_enabled']);self.assertTrue(main.options()['experimental_writes'])
+  main.WRITE_OVERRIDE=None
+  self.assertFalse(main.options()['write_enabled']);self.assertFalse(main.options()['experimental_writes'])
  def test_requires_header(self):
   with self.assertRaises(HTTPError) as err:
    self.fetch('/api/prepare',{'operation':'dhcp','values':{}})

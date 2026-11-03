@@ -108,3 +108,14 @@ Daljnji prioriteti nakon verifikacije izvornog A1 B08 API-ja: neovisno
 upravljanje 2,4/5 GHz, guest mreža i izolacija, kanal/širina, band steering.
 Za te nove kontrole u ovoj verziji nema write naredbi. Testiranje u ovoj verziji
 koristi simulirane odgovore; nije potvrda kompatibilnosti novih polja na živom B08.
+
+
+### Write mode iz sučelja
+
+Tipka u zaglavlju izravno uključuje/isključuje write mode bez poziva ZTE-u.
+Prekidač je zajednički svim prozorima ove instance Managera i vrijedi do restarta
+App-a. Ne zapisuje Supervisor options.json; nakon restarta vrijede konfigurirane
+vrijednosti write_enabled i allow_experimental_writes. Svako prebacivanje poništava
+pripremljene promjene. Isključivanje obuhvaća i DHCP rezervacije. Postojeća
+provjera firmwarea, potvrda pojedinačnih radnji, allow_disruptive_changes,
+allow_system_reboot i wifi_password_format ostaju na snazi.

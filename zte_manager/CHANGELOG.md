@@ -1,9 +1,12 @@
 ## 0.5.6
 
+- Tipka za uključivanje/isključivanje write moda (do restarta App-a), bez kontakta s routerom. Isključivanje blokira i DHCP rezervacije te poništava pripremljene radnje; pojedinačne potvrde i dodatne zaštite ostaju.
+
+- Uklonjeni debug JSON/transport ispisi iz rezervacija; čisti nazivi stupaca i poruke o stanju.
 - Grupirani izbornici: Pregled, Internet (4G/SIM/APN, Promet), Lokalna mreža (LAN/DHCP, DNS/AdGuard, Wi-Fi, Klijenti, NAT/Firewall), Sustav (Uređaj, API dijagnostika/Audit). Sve prethodne funkcije ostaju dostupne.
 - Wi-Fi: pretraga, SSID-index filtar, sortiranje po imenu/IP-u/prijavljenom numeričkom RSSI-ju, izvoz filtriranih klijenata u JSON.
 - Vrijeme očitanja, usporedba dostupnih radio polja između dva očitanja u istoj sesiji i matrica vraćenih/nepotvrđenih polja. Nema pretpostavke o SSID indeksu, RSSI jedinici ili podršci za write.
-- Pogreška očitanja uklanja stari prikaz; blokirani paralelni Wi-Fi zahtjevi. Popravljen odlazak na Write upute iz grupirane navigacije.
+- Pogreška očitanja uklanja stari prikaz; blokirani paralelni Wi-Fi zahtjevi. Upute o write modu ostaju u podizborniku Sustav.
 - Nema novih router naredbi, pozadinskog Wi-Fi pollinga ni promjena DHCP/DNS-a. Izvoz sadrži imena/IP/MAC i ostaje lokalno u pregledniku.
 
 ## 0.5.5 - Wi-Fi radio diagnostics (read-only)
