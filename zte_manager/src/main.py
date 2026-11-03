@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.4: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.6: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -16,7 +16,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.4"
+VERSION = "0.5.6"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -28,6 +28,8 @@ PEERS = {"172.30.32.2", "127.0.0.1", "::1"}
 LOCK = RLock()
 PLANS = {}
 STATIC_PLANS = {}
+# UI override lasts until the app restarts; Supervisor options stay untouched.
+WRITE_OVERRIDE = None
 
 
 def options():
@@ -35,6 +37,8 @@ def options():
         obj = json.loads(OPTIONS.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         obj = {}
+    with LOCK:
+        override = WRITE_OVERRIDE
     ip = str(obj.get("router_ip", "192.168.1.1"))
     addr = ipaddress.ip_address(ip)
     if not isinstance(addr, ipaddress.IPv4Address) or not addr.is_private or addr.is_loopback or addr.is_link_local:
@@ -42,7 +46,7 @@ def options():
     return {"ip": ip, "password": str(obj.get("router_password") or ""),
             "timeout": min(20, max(2, int(obj.get("timeout_seconds", 6)))),
             "firmware": str(obj.get("expected_firmware") or ""),
-            "write_enabled": obj.get("write_enabled") is True,
+            "write_enabled": (obj.get("write_enabled") is True) if override is None else override,
             "disruptive": obj.get("allow_disruptive_changes") is True,
             "apn": obj.get("allow_apn_changes") is True,
             "history": obj.get("monitor_enabled") is True,
@@ -50,7 +54,8 @@ def options():
             "mqtt_startup_probe": obj.get("startup_probe_once", True) is True,
             "interval": min(3600, max(120, int(obj.get("monitor_interval_seconds", 300)))),
             "verified_writes": obj.get("b08_write_verified") is True,
-            "experimental_writes": obj.get("allow_experimental_writes") is True,
+            "experimental_writes": (obj.get("allow_experimental_writes") is True) if override is None else override,
+            "write_mode_source": "configuration" if override is None else "session",
             "wifi_format": str(obj.get("wifi_password_format", "unknown")),
             "allow_reboot": obj.get("allow_system_reboot") is True}
 
@@ -74,7 +79,7 @@ def validate_ipv4(value):
 def plan_operation(op, data, groups, o):
     """Pure planning; no ZTE mutation. Checked again on commit."""
     if not o.get("write_enabled") or not o.get("experimental_writes"):
-        raise ValueError("Write zaključan: uključi write_enabled i allow_experimental_writes u HAOS postavkama")
+        raise ValueError("Write zaključan: uključi write mode tipkom u Manageru")
     fw = groups.get("device", {}).get("cr_version", "")
     if not fw or not o["firmware"] or fw.strip() != o["firmware"].strip():
         raise ValueError("Firmware nije jednak očekivanoj verziji. Write nije dopušten")
@@ -452,7 +457,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.5.3"
+    server_version = "ZTEManager/" + VERSION
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged
@@ -485,6 +490,7 @@ class Handler(BaseHTTPRequestHandler):
         static = {"/": ("static/index.html", "text/html; charset=utf-8"),
                   "/index.html": ("static/index.html", "text/html; charset=utf-8"),
                   "/static/app.js": ("static/app.js", "application/javascript; charset=utf-8"),
+                  "/static/wifi-view.js": ("static/wifi-view.js", "application/javascript; charset=utf-8"),
                   "/static/style.css": ("static/style.css", "text/css; charset=utf-8")}
         if path in static:
             file, mime = static[path]
@@ -493,7 +499,7 @@ class Handler(BaseHTTPRequestHandler):
             o = options()
             if path == "/api/meta":
                 return self.response(200, {"version":VERSION,"router_ip":o["ip"],"configured":bool(o["password"]),
-                                           "write_enabled":o["write_enabled"],"verified_writes":o["verified_writes"],"experimental_writes":o["experimental_writes"],"disruptive":o["disruptive"],"apn":o["apn"],"wifi_format":o["wifi_format"],"allow_reboot":o["allow_reboot"],"monitor_enabled":o["history"],"monitor_interval_seconds":o["interval"],"csrf":CSRF,
+                                           "write_mode_source":o["write_mode_source"],"write_enabled":o["write_enabled"],"verified_writes":o["verified_writes"],"experimental_writes":o["experimental_writes"],"disruptive":o["disruptive"],"apn":o["apn"],"wifi_format":o["wifi_format"],"allow_reboot":o["allow_reboot"],"monitor_enabled":o["history"],"monitor_interval_seconds":o["interval"],"csrf":CSRF,
                                            "expected_firmware":o["firmware"]})
             if path == "/api/state":
                 with ROUTER_LOCK:
@@ -508,6 +514,16 @@ class Handler(BaseHTTPRequestHandler):
                     clients, details = client.clients()
                     wired = client.lan_clients()
                 return self.response(200, {"clients":clients,"wired":wired,"details":details})
+            if path == "/api/wifi_details":
+                with ROUTER_LOCK:
+                    client = connect(o)
+                    details = client.wifi_radio_details()
+                    try:
+                        clients, _ = client.clients()  # station_list stays single-key
+                    except RouterError:
+                        clients = []
+                        details["errors"]["clients"] = "read_unavailable"
+                return self.response(200, {**details, "clients": clients})
             if path == "/api/dhcp_details":
                 with ROUTER_LOCK:
                     client = connect(o)
@@ -544,6 +560,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.response(502, {"error":str(e)})
 
     def do_POST(self):
+        # Serialize mode changes with writes so locking cannot race an apply.
+        with ROUTER_LOCK:
+            return self.handle_post()
+
+    def handle_post(self):
+        global WRITE_OVERRIDE
         if not self.allowed(): return
         if self.headers.get("X-ZTE-CSRF") != CSRF:
             return self.response(403, {"error":"CSRF token nije valjan; osvježi aplikaciju"})
@@ -561,7 +583,21 @@ class Handler(BaseHTTPRequestHandler):
                 return self.response(413, {"error":"Neispravna duljina zahtjeva"})
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict): raise ValueError("Neispravan payload")
+            if self.path == "/api/write_mode":
+                enabled = data.get("enabled")
+                if type(enabled) is not bool:
+                    raise ValueError("enabled mora biti boolean")
+                with LOCK:
+                    WRITE_OVERRIDE = enabled
+                    PLANS.clear()
+                    STATIC_PLANS.clear()
+                safe_log("write_mode", "enabled" if enabled else "disabled")
+                return self.response(200, {"write_enabled": enabled, "experimental_writes": enabled,
+                                          "write_mode_source": "session"})
             o = options()
+            if self.path in ("/api/static_prepare", "/api/static_apply", "/api/prepare", "/api/apply"):
+                if not o["write_enabled"] or not o["experimental_writes"]:
+                    raise ValueError("Write zaključan: uključi write mode tipkom u Manageru")
             if self.path == "/api/static_prepare":
                 action=str(data.get("action",""))
                 values=data.get("values",{})
@@ -679,3 +715,4 @@ if __name__ == "__main__":
             print(f"ZTE static test listener unavailable: {type(exc).__name__}", flush=True)
     threading.Thread(target=start_static_test_listener, name="zte-static-test", daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", 8099), Handler).serve_forever()
+

@@ -1,3 +1,20 @@
+## 0.5.6
+
+- Tipka za uključivanje/isključivanje write moda (do restarta App-a), bez kontakta s routerom. Isključivanje blokira i DHCP rezervacije te poništava pripremljene radnje; pojedinačne potvrde i dodatne zaštite ostaju.
+
+- Uklonjeni debug JSON/transport ispisi iz rezervacija; čisti nazivi stupaca i poruke o stanju.
+- Grupirani izbornici: Pregled, Internet (4G/SIM/APN, Promet), Lokalna mreža (LAN/DHCP, DNS/AdGuard, Wi-Fi, Klijenti, NAT/Firewall), Sustav (Uređaj, API dijagnostika/Audit). Sve prethodne funkcije ostaju dostupne.
+- Wi-Fi: pretraga, SSID-index filtar, sortiranje po imenu/IP-u/prijavljenom numeričkom RSSI-ju, izvoz filtriranih klijenata u JSON.
+- Vrijeme očitanja, usporedba dostupnih radio polja između dva očitanja u istoj sesiji i matrica vraćenih/nepotvrđenih polja. Nema pretpostavke o SSID indeksu, RSSI jedinici ili podršci za write.
+- Pogreška očitanja uklanja stari prikaz; blokirani paralelni Wi-Fi zahtjevi. Upute o write modu ostaju u podizborniku Sustav.
+- Nema novih router naredbi, pozadinskog Wi-Fi pollinga ni promjena DHCP/DNS-a. Izvoz sadrži imena/IP/MAC i ostaje lokalno u pregledniku.
+
+## 0.5.5 - Wi-Fi radio diagnostics (read-only)
+
+- Add a Wi-Fi-tab-only read-only radio probe for band steering, DFS, automatic channel selection, channel and channel width candidates, and guest client counts. Unknown B08 fields are explicitly marked as not returned, not invented as supported.
+- Add a connected Wi-Fi client snapshot grouped by ZTE-reported SSID index, with optional RSSI and link-rate values only if present in the original `station_list` response; do not assume SSID index means 2.4 or 5 GHz.
+- Preserve single-key `station_list` semantics and normal status polling latency. No new router writes; DHCP/DNS and existing write logic unchanged.
+
 ## 0.5.0
 - Display recovered `current_static_addr_list` records in a read-only LAN/DHCP table, with untrusted-value warning.
 - Keep reservation values off MQTT and service logs; no router writes added.
@@ -62,3 +79,4 @@
 - Read and scan a fixed list of stock WebUI JS/HTML paths for DHCP DNS handling.
 - Publish sanitized metadata to `ZTE DHCP DNS Option 6 probe` in Home Assistant over MQTT.
 - Never submit DNS or DHCP configuration writes; `option6_verified` remains false.
+
