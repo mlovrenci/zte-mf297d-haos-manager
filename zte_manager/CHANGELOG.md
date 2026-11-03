@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.6
+- Show recovered DHCP reservation probe result in UI (previously invisible).
+- Optional one-shot MQTT diagnostics sensor, using MQTT service permission only (no Home Assistant admin API).
+- Classify recovered list/dict/string structural metadata without publishing raw IP/MAC records.
+- No additional router writes. All writes remain locked by default.
+
+# Changelog
+
 ## 0.4.5
 - Read-only recovery of malformed DHCP reservation API response with untrusted values excluded from write operations.
 - Kept experimental router writes disabled by default.

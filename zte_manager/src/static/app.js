@@ -41,6 +41,8 @@ async function dhcpInventory(){
     const res=data.data?.reservations||{}, dns=data.data?.dhcp_client_dns||{};
     const entries=Object.entries(res);
     const statuses=data.field_status?.reservations||{}, dStatuses=data.field_status?.dhcp_client_dns||{};
+    const recovered=data.transport_probe||{};
+    const recoveredTop=Object.values(recovered).find(x=>x.status==='field_present_nonempty') || Object.values(recovered).find(x=>x.status==='field_present_empty');
     const foundNonempty=entries.some(([,val])=>Array.isArray(val)&&val.length>0);
     const emptyList=Object.entries(statuses).filter(([,v])=>v==='returned_empty_list').map(([k])=>k);
     if(foundNonempty){
@@ -48,6 +50,7 @@ async function dhcpInventory(){
     } else if(emptyList.length){
       $('reservationsBox').textContent=`API je vratio praznu listu (${emptyList.join(', ')}). Možda nema rezervacija ili firmware vraća prazno za nepodržane nazive. Write još nije potvrđen.`;
     } else $('reservationsBox').textContent='Nije pronađena popunjena lista rezervacija. Detalji po polju slijede; izostanak odgovora ne dokazuje da rezervacije nisu podržane.';
+    if(recoveredTop){const r=document.createElement('pre');r.className='hint';r.textContent='Oporavljeni B08 odgovor: '+JSON.stringify(recoveredTop,null,2)+'\nNapomena: oporavljeni odgovor nije dokaz podrške za write.';$('reservationsBox').appendChild(r);}
     const diag=document.createElement('pre');diag.className='hint';diag.textContent=JSON.stringify(statuses,null,2);$('reservationsBox').appendChild(diag);
     if(data.transport_probe){
       const detail=document.createElement('pre');detail.className='hint';

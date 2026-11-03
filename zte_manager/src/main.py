@@ -1,4 +1,4 @@
-"""ZTE Manager v0.4.5: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.4.6: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -10,8 +10,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import RLock
 from time import monotonic, time
 from zte_api import RouterClient, RouterError
+from mqtt_probe import publish_probe
 
-VERSION = "0.4.5"
+VERSION = "0.4.6"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -40,6 +41,7 @@ def options():
             "disruptive": obj.get("allow_disruptive_changes") is True,
             "apn": obj.get("allow_apn_changes") is True,
             "history": obj.get("monitor_enabled") is True,
+            "mqtt_diagnostics": obj.get("mqtt_diagnostics_enabled") is True,
             "interval": min(3600, max(120, int(obj.get("monitor_interval_seconds", 300)))),
             "verified_writes": obj.get("b08_write_verified") is True,
             "experimental_writes": obj.get("allow_experimental_writes") is True,
@@ -328,6 +330,53 @@ def sanitized_network_snapshot(groups):
                     for k in fields if groups.get(group, {}).get(k) not in (None, "")}
             for group, fields in allow.items()}
 
+def summarize_dhcp_probe(details):
+    """Read-only metadata (no IP/MAC/password) for an MQTT diagnostic entity."""
+    transport = details.get("transport_probe", {})
+    result = next((transport[k] for k in ("get", "post_read")
+                  if transport.get(k, {}).get("status") == "field_present_nonempty"), None)
+    if result is None:
+        result = next((transport[k] for k in ("get", "post_read")
+                       if transport.get(k, {}).get("status") == "field_present_empty"), None)
+    if result:
+        status = "recovered_nonempty" if result["status"] == "field_present_nonempty" else "recovered_empty"
+    else:
+        status = "unconfirmed"
+    return {"status": status, "version": VERSION, "checked_at": int(time()),
+            "transport_probe": transport,
+            "reservation_field_status": details.get("field_status", {}).get("reservations", {}),
+            "dns_field_status": details.get("field_status", {}).get("dhcp_client_dns", {}),
+            "errors": details.get("errors", {})}
+
+
+def publish_dhcp_status(details):
+    try:
+        publish_probe(summarize_dhcp_probe(details))
+    except Exception as exc:
+        # Do not expose broker credentials or error details in the service log.
+        print(f"ZTE DHCP MQTT diagnostics unavailable: {type(exc).__name__}", flush=True)
+
+
+def startup_dhcp_probe():
+    # Safe read-only probe once when the app starts; no change to router config.
+    threading.Event().wait(6)
+    try:
+        o = options()
+        if not o.get("mqtt_diagnostics"):
+            return
+        with ROUTER_LOCK:
+            client = connect(o)
+            details = client.dhcp_inventory()
+        publish_dhcp_status(details)
+    except Exception as exc:
+        print(f"ZTE DHCP startup probe unavailable: {type(exc).__name__}", flush=True)
+        try:
+            publish_probe({"status": "error", "version": VERSION,
+                           "reason": type(exc).__name__, "checked_at": int(time())})
+        except Exception:
+            pass
+
+
 def monitor_loop():
     # Disabled by default. One small poll every N seconds when enabled.
     while True:
@@ -344,7 +393,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.4.5"
+    server_version = "ZTEManager/0.4.6"
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged
@@ -404,6 +453,9 @@ class Handler(BaseHTTPRequestHandler):
                 with ROUTER_LOCK:
                     client = connect(o)
                     details = client.dhcp_inventory()
+                # One-shot publication is optional and never changes ZTE settings.
+                if o.get("mqtt_diagnostics"):
+                    threading.Thread(target=publish_dhcp_status, args=(details,), daemon=True).start()
                 return self.response(200, details)
             if path == "/api/audit":
                 rows = []
@@ -520,4 +572,5 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"ZTE Manager {VERSION}: HA Ingress @8099 (password not logged)", flush=True)
     threading.Thread(target=monitor_loop, name="zte-monitor", daemon=True).start()
+    threading.Thread(target=startup_dhcp_probe, name="zte-dhcp-probe", daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", 8099), Handler).serve_forever()

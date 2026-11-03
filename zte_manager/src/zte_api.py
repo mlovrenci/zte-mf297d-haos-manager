@@ -57,7 +57,7 @@ class RouterClient:
         headers = {"Referer": self.base + "/", "Origin": self.base,
                    "X-Requested-With": "XMLHttpRequest",
                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                   "User-Agent": "ZTE-Manager/0.4.5"}
+                   "User-Agent": "ZTE-Manager/0.4.6"}
         encoded = None
         if data is not None:
             encoded = urllib.parse.urlencode(data).encode()
@@ -155,7 +155,7 @@ class RouterClient:
         headers = {"Referer": self.base + "/", "Origin": self.base,
                    "X-Requested-With": "XMLHttpRequest",
                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                   "User-Agent": "ZTE-Manager/0.4.5"}
+                   "User-Agent": "ZTE-Manager/0.4.6"}
         data = None
         if form is not None:
             data = urllib.parse.urlencode(form).encode("ascii")
@@ -302,7 +302,17 @@ class RouterClient:
                     except ValueError: pass
                 out = {"status": "field_present_empty" if value in ("", [], {}) else "field_present_nonempty",
                        **info, "value_type": type(value).__name__}
-                if isinstance(value, list):out["list_length"] = len(value)
+                if isinstance(value, list):
+                    out["list_length"] = len(value)
+                    out["list_item_types"] = sorted({type(v).__name__ for v in value[:25]})
+                    if value and isinstance(value[0], dict):
+                        out["first_item_field_count"] = len(value[0])
+                if isinstance(value, dict):
+                    out["object_field_count"] = len(value)
+                if isinstance(value, str):
+                    out["value_length"] = len(value)
+                    out["text_structure"] = {"comma":value.count(","),"semicolon":value.count(";"),
+                                             "pipe":value.count("|"),"newline":value.count("\n")}
                 return out
         except urllib.error.HTTPError as err:
             return {"status": "http_error", "http_status": err.code}

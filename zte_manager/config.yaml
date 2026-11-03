@@ -1,5 +1,5 @@
 name: "ZTE Manager (MF297D)"
-version: "0.4.5"
+version: "0.4.6"
 slug: "zte_manager"
 description: "MF297D: local HAOS control panel, controlled Goform writes, LTE, LAN, Wi-Fi and diagnostics"
 arch:
@@ -13,12 +13,15 @@ panel_icon: mdi:router-network
 panel_title: ZTE Manager
 panel_admin: true
 protected: true
+services:
+  - mqtt:want
 options:
   router_ip: "192.168.1.1"
   router_password: ""
   timeout_seconds: 6
   expected_firmware: "CR_A1HRMF297DV1.0.0B08"
   monitor_enabled: false
+  mqtt_diagnostics_enabled: false
   monitor_interval_seconds: 300
   write_enabled: false
   allow_experimental_writes: false
@@ -33,6 +36,7 @@ schema:
   timeout_seconds: int(2,20)
   expected_firmware: str
   monitor_enabled: bool
+  mqtt_diagnostics_enabled: bool
   monitor_interval_seconds: int(120,3600)
   write_enabled: bool
   allow_experimental_writes: bool
