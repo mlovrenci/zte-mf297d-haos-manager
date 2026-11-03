@@ -58,31 +58,57 @@ function renderClients(){
   $('clientCount').textContent=`${filtered.length} prikazano · ${clientList.length} ukupno (API povezanih klijenata, ne svi DHCP leaseovi)`;
   $('clientsbox').innerHTML=filtered.length?filtered.map(wifiClientRow).join(''):'<p class="hint">Nema rezultata. Prazan API odgovor ne dokazuje da uređaji nisu spojeni.</p>';
 }
+let wifiSnapshot=null, previousWifiFields=null, wifiBusy=false;
+function wifiSelection(){
+  return WifiView.select(wifiSnapshot?.clients||[], $('wifiSearch').value, $('wifiIndex').value, $('wifiSort').value);
+}
+function renderWifiClients(){
+  if(!wifiSnapshot)return;
+  const clients=wifiSelection(), all=wifiSnapshot.clients||[];
+  const counts=new Map();all.forEach(c=>{const i=String(c.ssid_index??'nepoznat');counts.set(i,(counts.get(i)||0)+1)});
+  const breakdown=[...counts].map(([i,n])=>`indeks ${i}: ${n}`).join(' · ');
+  $('wifiClientCount').textContent=wifiSnapshot.errors?.clients
+    ? 'ZTE nije vratio station_list; broj klijenata nije poznat.'
+    : `${clients.length} prikazano / ${all.length} prijavljeno${breakdown?' · '+breakdown:''} · očitano ${new Date(wifiSnapshot.read_at).toLocaleString('hr-HR')}`;
+  $('wifiClientList').innerHTML=clients.length?clients.map(wifiClientRow).join(''):'<p class="hint">Nema rezultata za ovaj filtar ili ZTE nije vratio klijente. To ne potvrđuje odspajanje uređaja.</p>';
+}
 async function wifiDiagnostics(){
-  const button=$('wifiDiagRefresh');button.disabled=true;
+  if(wifiBusy)return;
+  wifiBusy=true;
+  const button=$('wifiDiagRefresh');button.disabled=true;$('wifiExport').disabled=true;
   $('wifiRadioStatus').textContent='Očitavam dostupne radio parametre…';
   $('wifiClientCount').textContent='Očitavam spojene Wi-Fi klijente…';
   try{
     const result=await req('wifi_details');
     const fields=result.fields||{}, returned=Object.keys(fields);
+    wifiSnapshot={...result,clients:Array.isArray(result.clients)?result.clients:[],read_at:new Date().toISOString()};
     tiles('wifiRadio',fields);
-    $('wifiRadioStatus').textContent=returned.length
-      ? `${returned.length} potvrđenih read polja · nepodržana/prazna polja izostavljena · bez write operacija`
-      : 'B08 nije vratio napredne Wi-Fi vrijednosti. To ne potvrđuje ni dostupnost ni nedostupnost postavke.';
-    if(Object.keys(result.errors||{}).length){
-      $('wifiRadioStatus').textContent+=' · Dio API upita nije uspio.';
-    }
-    const clients=Array.isArray(result.clients)?result.clients:[];
-    const countByIndex={};
-    clients.forEach(c=>{const key=String(c.ssid_index??'nepoznat');countByIndex[key]=(countByIndex[key]||0)+1});
-    const breakdown=Object.entries(countByIndex).map(([index,count])=>`indeks ${index}: ${count}`).join(' · ');
-    $('wifiClientCount').textContent=result.errors?.clients
-      ? 'ZTE nije vratio station_list; broj klijenata nije poznat.'
-      : `${clients.length} prijavljenih Wi-Fi klijenata${breakdown?' · '+breakdown:''}`;
-    $('wifiClientList').innerHTML=clients.length?clients.map(wifiClientRow).join(''):'<p class="hint">ZTE station_list je prazan ili nije dostupan; ne znači da su svi Wi-Fi uređaji odspojeni.</p>';
-  }catch(e){$('wifiRadioStatus').textContent='Wi-Fi dijagnostika nije dostupna: '+e.message;$('wifiClientCount').textContent='Nije moguće potvrditi klijente.';$('wifiClientList').textContent='—';}
-  finally{button.disabled=false}
+    $('wifiRadioStatus').textContent=`Očitano ${new Date(wifiSnapshot.read_at).toLocaleString('hr-HR')} · ${returned.length} vraćenih polja · ${Object.keys(result.errors||{}).length?'dio API upita nije uspio':'samo čitanje'}`;
+    tiles('wifiSupport',Object.fromEntries(Object.entries(result.field_status||{}).map(([key,value])=>[key,value==='returned'?'Vrijednost vraćena':'Nije vraćeno · podrška nije potvrđena'])));
+    const changes=WifiView.changes(previousWifiFields,fields);
+    $('wifiChanges').textContent=previousWifiFields===null?'Prvo očitanje u ovoj sesiji; za usporedbu ponovno pritisni Očitaj.':changes.length?'Promjene od prethodnog očitanja: '+changes.map(c=>`${labels[c.key]||c.key}: ${c.before} → ${c.after}`).join(' · '):'Nema promjena među poljima dostupnima u oba očitanja. Izostala polja ne smatramo promjenom konfiguracije.';
+    previousWifiFields={...fields};
+    const selected=$('wifiIndex').value;
+    const indices=[...new Set(wifiSnapshot.clients.map(c=>String(c.ssid_index??'')))].sort();
+    $('wifiIndex').innerHTML='<option value="">Svi indeksi</option>'+indices.filter(Boolean).map(i=>`<option value="${escapeHTML(i)}">Indeks ${escapeHTML(i)}</option>`).join('');
+    $('wifiIndex').value=indices.includes(selected)?selected:'';
+    renderWifiClients();$('wifiExport').disabled=Boolean(result.errors?.clients);
+  }catch(e){
+    wifiSnapshot=null;previousWifiFields=null;
+    $('wifiRadioStatus').textContent='Wi-Fi dijagnostika nije dostupna: '+e.message;
+    for(const id of ['wifiRadio','wifiSupport','wifiClientList','wifiChanges'])$(id).textContent='Nema svježeg očitanja.';
+    $('wifiClientCount').textContent='Nije moguće potvrditi klijente.';
+  }finally{button.disabled=false;wifiBusy=false}
 }
+$('wifiSearch').oninput=renderWifiClients;
+$('wifiIndex').onchange=renderWifiClients;
+$('wifiSort').onchange=renderWifiClients;
+$('wifiExport').onclick=()=>{
+  if(!wifiSnapshot||wifiBusy||wifiSnapshot.errors?.clients)return;
+  const payload={read_at:wifiSnapshot.read_at,source:'station_list',ssid_index:$('wifiIndex').value||null,query:$('wifiSearch').value,clients:wifiSelection()};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+  const link=document.createElement('a');link.href=url;link.download='zte-wifi-clients.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
 function renderWired(){
   $('wiredCount').textContent=`${wiredList.length} uređaja iz lan_station_list (ne moraju biti svi DHCP leaseovi)`;
   $('wiredbox').innerHTML=wiredList.length?wiredList.map(c=>`<div class="client"><div><b>${escapeHTML(c.hostname||'Nepoznati uređaj')}</b><small>${escapeHTML(c.mac_addr||'—')}</small></div><span class="ip">${escapeHTML(c.ip_addr||'—')}</span></div>`).join(''):'<p class="hint">ZTE nije vratio LAN klijente. To ne dokazuje da nisu spojeni.</p>';
@@ -132,4 +158,18 @@ async function dhcpInventory(){
 }
 $('reservationsRefresh').onclick=dhcpInventory;
 $('dhcpDnsRefresh').onclick=dhcpInventory;
-$('clientSearch').oninput=renderClients;$('clientsRefresh').onclick=clients;$('wifiDiagRefresh').onclick=wifiDiagnostics;$('diagRefresh').onclick=diagnostics;$('diagCopy').onclick=()=>navigator.clipboard.writeText($('diag').textContent).then(()=>notice('Anonimizirana dijagnostika kopirana.')).catch(()=>notice('Kopiranje nije dostupno.',true));$('reload').onclick=refresh;document.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{activeHours=Number(b.dataset.hours);document.querySelectorAll('[data-hours]').forEach(x=>x.classList.toggle('active',Number(x.dataset.hours)===activeHours));history(activeHours)});document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('hidden',x.id!==b.dataset.tab));if(b.dataset.tab==='clients')clients();if(b.dataset.tab==='wifi')wifiDiagnostics();if(b.dataset.tab==='diagnostics')diagnostics();if(b.dataset.tab==='traffic')history(activeHours)});refresh();
+$('clientSearch').oninput=renderClients;$('clientsRefresh').onclick=clients;$('wifiDiagRefresh').onclick=wifiDiagnostics;$('diagRefresh').onclick=diagnostics;$('diagCopy').onclick=()=>navigator.clipboard.writeText($('diag').textContent).then(()=>notice('Anonimizirana dijagnostika kopirana.')).catch(()=>notice('Kopiranje nije dostupno.',true));$('reload').onclick=refresh;document.querySelectorAll('[data-hours]').forEach(b=>b.onclick=()=>{activeHours=Number(b.dataset.hours);document.querySelectorAll('[data-hours]').forEach(x=>x.classList.toggle('active',Number(x.dataset.hours)===activeHours));history(activeHours)});const tabGroups={pregled:'overview',internet:'internet',traffic:'internet',dhcp:'local',dns:'local',wifi:'local',clients:'local',firewall:'local',system:'system',diagnostics:'system'};
+const lastTabs={overview:'pregled',internet:'internet',local:'dhcp',system:'system'};
+function openTab(tab){
+  const group=tabGroups[tab];if(!group)return;
+  lastTabs[group]=tab;
+  document.querySelectorAll('[data-group]').forEach(b=>{const active=b.dataset.group===group;b.classList.toggle('active',active);b.setAttribute('aria-expanded',String(active))});
+  document.querySelectorAll('.subnav').forEach(n=>n.classList.toggle('hidden',group==='overview'||n.id!=='sub-'+group));
+  document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==tab));
+  if(tab==='clients')clients();if(tab==='wifi')wifiDiagnostics();if(tab==='diagnostics')diagnostics();if(tab==='traffic')history(activeHours);
+}
+document.querySelectorAll('[data-group]').forEach(b=>b.onclick=()=>openTab(lastTabs[b.dataset.group]));
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
+$('writeGuideLink').onclick=e=>{e.preventDefault();openTab('system');$('writeGuide').scrollIntoView({behavior:'smooth'})};
+refresh();

@@ -20,3 +20,11 @@ jobs:
           python-version: '3.12'
       - name: Unit tests
         run: python -m unittest discover -s tests -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax and Wi-Fi view tests
+        run: |
+          node --check zte_manager/src/static/app.js
+          node --check zte_manager/src/static/wifi-view.js
+          node --test tests/test_wifi_view.cjs

@@ -129,8 +129,12 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.5')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.6')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
+ def test_wifi_view_asset_served(self):
+  with urlopen(self.addr+'/static/wifi-view.js',timeout=5) as response:
+   self.assertIn('application/javascript',response.headers['Content-Type'])
+   self.assertIn(b'const WifiView',response.read())
  def test_wifi_details_is_read_only(self):
   response=self.fetch('/api/wifi_details')
   self.assertEqual(response['fields']['wifi_lbd_enable'],'1')
@@ -357,3 +361,4 @@ class ReservationTransportTests(unittest.TestCase):
   with patch.object(c, '_request',side_effect=fake_request): c.probe_reservation_transport()
   self.assertEqual(len(sent),2)
   self.assertTrue(all('goform_get_cmd_process' in url and 'goform_set_cmd_process' not in url for url,_ in sent))
+

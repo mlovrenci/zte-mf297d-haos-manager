@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.5: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.6: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -16,7 +16,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.5"
+VERSION = "0.5.6"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -485,6 +485,7 @@ class Handler(BaseHTTPRequestHandler):
         static = {"/": ("static/index.html", "text/html; charset=utf-8"),
                   "/index.html": ("static/index.html", "text/html; charset=utf-8"),
                   "/static/app.js": ("static/app.js", "application/javascript; charset=utf-8"),
+                  "/static/wifi-view.js": ("static/wifi-view.js", "application/javascript; charset=utf-8"),
                   "/static/style.css": ("static/style.css", "text/css; charset=utf-8")}
         if path in static:
             file, mime = static[path]
@@ -689,3 +690,4 @@ if __name__ == "__main__":
             print(f"ZTE static test listener unavailable: {type(exc).__name__}", flush=True)
     threading.Thread(target=start_static_test_listener, name="zte-static-test", daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", 8099), Handler).serve_forever()
+

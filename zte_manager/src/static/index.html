@@ -1,11 +1,18 @@
 <!doctype html><html lang="hr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d1724"><title>ZTE Manager</title><link rel="stylesheet" href="static/style.css"></head><body>
 <div class="app">
-  <header class="masthead"><div class="brand"><div class="mark">Z</div><div><div class="eyebrow">HOME ASSISTANT / NETWORK</div><h1>ZTE Manager <span class="version">v0.5.5</span></h1><div class="sub">MF297D · A1 B08 · HT SIM · lokalna administracija</div></div></div><div class="header-right"><span id="badge" class="pill muted">Povezivanje</span><button type="button" id="reload" class="primary">↻ <span>Osvježi</span></button></div></header>
+  <header class="masthead"><div class="brand"><div class="mark">Z</div><div><div class="eyebrow">HOME ASSISTANT / NETWORK</div><h1>ZTE Manager <span class="version">v0.5.6</span></h1><div class="sub">MF297D · A1 B08 · HT SIM · lokalna administracija</div></div></div><div class="header-right"><span id="badge" class="pill muted">Povezivanje</span><button type="button" id="reload" class="primary">↻ <span>Osvježi</span></button></div></header>
   <div class="writebar"><div><strong>Upravljanje konfiguracijom</strong><span id="writeStatus">Provjeravam write postavke…</span></div><a href="#writeGuide" id="writeGuideLink">Kako otključati</a></div>
   <div id="message" class="message">Čitanje statusa routera…</div>
   <nav aria-label="Glavni izbornik" id="nav">
-    <button data-tab="pregled" class="active">Pregled</button><button data-tab="internet">4G / SIM</button><button data-tab="traffic">Promet</button><button data-tab="dhcp">LAN / DHCP</button><button data-tab="dns">DNS</button><button data-tab="wifi">Wi-Fi</button><button data-tab="clients">Klijenti</button><button data-tab="firewall">NAT / Firewall</button><button data-tab="system">Sustav</button><button data-tab="diagnostics">API dijagnostika</button>
+    <button type="button" data-group="overview" class="active" aria-expanded="true">Pregled</button>
+    <button type="button" data-group="internet" aria-expanded="false" aria-controls="sub-internet">Internet</button>
+    <button type="button" data-group="local" aria-expanded="false" aria-controls="sub-local">Lokalna mreža</button>
+    <button type="button" data-group="system" aria-expanded="false" aria-controls="sub-system">Sustav</button>
   </nav>
+  <nav id="sub-overview" class="subnav hidden" aria-label="Pregled"><button data-tab="pregled" class="active">Pregled</button></nav>
+  <nav id="sub-internet" class="subnav hidden" aria-label="Internet"><button data-tab="internet">4G / SIM / APN</button><button data-tab="traffic">Promet</button></nav>
+  <nav id="sub-local" class="subnav hidden" aria-label="Lokalna mreža"><button data-tab="dhcp">LAN / DHCP</button><button data-tab="dns">DNS / AdGuard</button><button data-tab="wifi">Wi-Fi</button><button data-tab="clients">Klijenti</button><button data-tab="firewall">NAT / Firewall</button></nav>
+  <nav id="sub-system" class="subnav hidden" aria-label="Sustav"><button data-tab="system">Uređaj i upravljanje</button><button data-tab="diagnostics">API dijagnostika / Audit</button></nav>
   <main>
    <section id="pregled" class="panel"><div class="section-heading"><div><div class="eyebrow">GATEWAY</div><h2>Pregled mreže</h2><p>Očitavanja s routera; prazna polja nisu potvrđena kao podržana.</p></div><span class="state-tag" id="lastUpdated">—</span></div>
     <div class="hero-cards" id="heroCards"><article class="hero"><small>WAN</small><strong>—</strong></article><article class="hero"><small>LTE signal</small><strong>—</strong></article><article class="hero"><small>Wi-Fi</small><strong>—</strong></article><article class="hero"><small>DHCP</small><strong>—</strong></article></div>
@@ -36,9 +43,18 @@
       <p>Band steering, DFS, kanal i širina kanala, ako ih A1 B08 vraća. Ovo su read-only API kandidati; nepodržana polja se ne prikazuju kao stvarne postavke.</p>
       <p class="tiny-stats" id="wifiRadioStatus">Otvori Wi-Fi ili pritisni Očitaj.</p>
       <div id="wifiRadio" class="tiles">Još nije očitano.</div>
+      <p id="wifiChanges" aria-live="polite">Promjene će se usporediti nakon dva očitanja u ovoj sesiji.</p>
+      <details><summary>Dostupnost naprednih polja na B08</summary><div id="wifiSupport" class="tiles">Još nije očitano.</div></details>
     </article>
     <article class="card">
       <h3>Trenutačno povezani Wi-Fi klijenti</h3><p>Jednokratno očitanje <code>station_list</code>. Grupiranje je po ZTE SSID indeksu, ne pretpostavljamo koji indeks znači 2,4/5 GHz. Prazna lista ne dokazuje da nema uređaja.</p>
+      <div class="wifi-tools">
+        <label>Pretraži uređaje<input id="wifiSearch" type="search" placeholder="Ime, IP ili MAC"></label>
+        <label>SSID indeks<select id="wifiIndex"><option value="">Svi indeksi</option></select></label>
+        <label>Redoslijed<select id="wifiSort"><option value="name">Naziv uređaja</option><option value="rssi">RSSI · slabiji prvo</option><option value="ip">IP adresa</option></select></label>
+        <button type="button" id="wifiExport" disabled>Izvezi JSON</button>
+      </div>
+      <p class="footnote">Izvoz sadrži trenutno filtrirane uređaje, imena, IP i MAC adrese. RSSI se sortira samo kad je numerički; jedinice ne pretpostavljamo.</p>
       <div id="wifiClientCount" class="tiny-stats">Još nije očitano.</div><div id="wifiClientList">—</div>
     </article>
     <article class="card narrow"><h3>Glavni Wi-Fi prekidač</h3><form id="wifiPowerForm"><label class="checkbox"><input id="wifiPower" type="checkbox"> Wi-Fi ON</label><label class="checkbox"><input id="wifiRecovery" type="checkbox"> Imam žični pristup za oporavak ako gasim Wi-Fi</label><p class="warning">Wi-Fi OFF prekida pristup preko telefona, kioska i drugih bežičnih uređaja. Ne koristi bez žičnog računala.</p><button class="primary" type="submit">Pripremi Wi-Fi ON/OFF</button></form></article>
@@ -51,6 +67,7 @@
    <section id="system" class="panel hidden"><div class="section-heading"><div><div class="eyebrow">DEVICE</div><h2>Sustav</h2><p>Firmware, vrijeme i dodatni sistemski parametri – bez firmware flasha i factory reseta.</p></div></div><article class="card"><h3>Uređaj</h3><div id="systeminfo" class="tiles"></div></article><article class="card"><h3>Dodatni podaci</h3><div id="systemextra" class="tiles"></div></article><article class="card"><h3>Kontrolirani restart routera</h3><p>Pokreće ZTE Goform <code>REBOOT_DEVICE</code>. Bez tvorničkog reseta i promjene konfiguracije. Kratko prekida internet i Wi-Fi cijele kuće.</p><form id="rebootForm"><button type="submit" class="danger">Pripremi restart ZTE-a</button></form></article>
    <article class="card" id="writeGuide"><h3>Write režim i sigurnost</h3><p>U HAOS → Settings → Apps → ZTE Manager → Configuration postavi <code>write_enabled: true</code> i <code>allow_experimental_writes: true</code> samo kada namjerno želiš testirati write API. <code>b08_write_verified</code> ostaje false dok nije potvrđen stvarni uspješan write/readback na A1 B08. Samo otključavanje nije potvrda kompatibilnosti. Za radnje koje prekidaju mrežu uključi i <code>allow_disruptive_changes</code>. Za restart dodatno <code>allow_system_reboot</code>. Ako Wi-Fi mijenjaš, utvrdi <code>wifi_password_format</code> (plain/base64).</p><p class="warning">DHCP OFF radi tek nakon instaliranog i provjerenog drugog DHCP servera. Pripremi fizički povratak postavki preko ZTE-a prije tog zahvata.</p></article></section>
    <section id="diagnostics" class="panel hidden"><div class="section-heading"><div><div class="eyebrow">COMPATIBILITY</div><h2>API dijagnostika</h2><p>Provjeravamo koja se polja na firmwareu <code>CR_A1HRMF297DV1.0.0B08</code> doista pojavljuju.</p></div></div><article class="card"><h3>Matrica dostupnosti</h3><div id="caps" class="cap-grid"></div><p class="footnote">Oznaka djelomično dostupno znači da podaci postoje, ali nedostaje tražena ključna metrika. Prisutnost polja znači da je čitanje dostupno, <strong>ne</strong> da je write operacija testirana.</p></article><article class="card"><div class="card-head"><h3>Dijagnostički izvještaj</h3><div class="actions"><button type="button" id="diagRefresh">Osvježi</button><button type="button" id="diagCopy">Kopiraj</button></div></div><pre id="diag">Čekam očitanje…</pre></article><article class="card"><h3>Audit promjena</h3><pre id="audit">Nema podataka</pre></article></section>
-  </main><footer>ZTE Manager v0.5.5 · HAOS Ingress · lokalno · admin-only · bez cloud servisa · write zaključan po zadanim postavkama</footer>
+  </main><footer>ZTE Manager v0.5.6 · HAOS Ingress · lokalno · admin-only · bez cloud servisa · write zaključan po zadanim postavkama</footer>
 </div><div id="confirmDialog" class="overlay hidden"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle"><h2 id="confirmTitle">Potvrda promjene</h2><p id="planText"></p><p class="warning">Mrežne postavke mogu prekinuti rad kućnih uređaja. Provjeri fizički pristup ZTE-u i rollback prije nastavka.</p><label>Upiši <strong id="confirmPhrase"></strong><input id="confirmInput" autocomplete="off" spellcheck="false"></label><div class="actions"><button id="cancel" type="button">Odustani</button><button id="commit" class="danger" type="button">Primijeni na ZTE</button></div></div></div>
-<script src="static/app.js"></script></body></html>
+<script src="static/wifi-view.js"></script><script src="static/app.js"></script></body></html>
+

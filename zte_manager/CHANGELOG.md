@@ -1,3 +1,11 @@
+## 0.5.6
+
+- Grupirani izbornici: Pregled, Internet (4G/SIM/APN, Promet), Lokalna mreža (LAN/DHCP, DNS/AdGuard, Wi-Fi, Klijenti, NAT/Firewall), Sustav (Uređaj, API dijagnostika/Audit). Sve prethodne funkcije ostaju dostupne.
+- Wi-Fi: pretraga, SSID-index filtar, sortiranje po imenu/IP-u/prijavljenom numeričkom RSSI-ju, izvoz filtriranih klijenata u JSON.
+- Vrijeme očitanja, usporedba dostupnih radio polja između dva očitanja u istoj sesiji i matrica vraćenih/nepotvrđenih polja. Nema pretpostavke o SSID indeksu, RSSI jedinici ili podršci za write.
+- Pogreška očitanja uklanja stari prikaz; blokirani paralelni Wi-Fi zahtjevi. Popravljen odlazak na Write upute iz grupirane navigacije.
+- Nema novih router naredbi, pozadinskog Wi-Fi pollinga ni promjena DHCP/DNS-a. Izvoz sadrži imena/IP/MAC i ostaje lokalno u pregledniku.
+
 ## 0.5.5 - Wi-Fi radio diagnostics (read-only)
 
 - Add a Wi-Fi-tab-only read-only radio probe for band steering, DFS, automatic channel selection, channel and channel width candidates, and guest client counts. Unknown B08 fields are explicitly marked as not returned, not invented as supported.
@@ -68,3 +76,4 @@
 - Read and scan a fixed list of stock WebUI JS/HTML paths for DHCP DNS handling.
 - Publish sanitized metadata to `ZTE DHCP DNS Option 6 probe` in Home Assistant over MQTT.
 - Never submit DNS or DHCP configuration writes; `option6_verified` remains false.
+

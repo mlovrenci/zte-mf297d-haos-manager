@@ -4,6 +4,13 @@ Home Assistant OS App using the local Goform API. Open **Documentation** for con
 
 **Warning:** This project targets A1 B08 firmware and has unverified write support. Leave write options disabled until validated.
 
+## v0.5.6: Grouped navigation and Wi-Fi tools
+
+Open **Lokalna mreža → Wi-Fi** for client search, SSID-index filtering,
+name/IP/reported RSSI sorting and local JSON export. Read timestamps,
+radio changes between reads and field availability help diagnose B08 without
+adding router writes. Existing controls remain in their corresponding submenus.
+
 ## v0.5.5: Wi-Fi radio diagnostics
 
 Open the **Wi-Fi** tab to read available steering/DFS and channel/channel-width
@@ -26,3 +33,4 @@ included. This is an observation snapshot, **not** an exhaustive ZTE DHCP
 lease database; disconnected clients may be missing. It does not modify ZTE,
 AdGuard, DNS, or DHCP. Remove the temporary MQTT discovery and retained
 messages after completing the migration inventory.
+
