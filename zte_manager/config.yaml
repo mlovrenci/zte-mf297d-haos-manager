@@ -1,0 +1,43 @@
+name: "ZTE Manager (MF297D)"
+version: "0.4.5"
+slug: "zte_manager"
+description: "MF297D: local HAOS control panel, controlled Goform writes, LTE, LAN, Wi-Fi and diagnostics"
+arch:
+  - amd64
+startup: services
+boot: auto
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:router-network
+panel_title: ZTE Manager
+panel_admin: true
+protected: true
+options:
+  router_ip: "192.168.1.1"
+  router_password: ""
+  timeout_seconds: 6
+  expected_firmware: "CR_A1HRMF297DV1.0.0B08"
+  monitor_enabled: false
+  monitor_interval_seconds: 300
+  write_enabled: false
+  allow_experimental_writes: false
+  b08_write_verified: false
+  wifi_password_format: "unknown"
+  allow_system_reboot: false
+  allow_disruptive_changes: false
+  allow_apn_changes: false
+schema:
+  router_ip: str
+  router_password: password
+  timeout_seconds: int(2,20)
+  expected_firmware: str
+  monitor_enabled: bool
+  monitor_interval_seconds: int(120,3600)
+  write_enabled: bool
+  allow_experimental_writes: bool
+  b08_write_verified: bool
+  wifi_password_format: list(unknown|plain|base64)
+  allow_system_reboot: bool
+  allow_disruptive_changes: bool
+  allow_apn_changes: bool

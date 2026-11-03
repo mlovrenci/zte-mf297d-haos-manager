@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+secrets.yaml
+options.json
+*.log
+*.sqlite3
+zte_audit.jsonl
+zte_history.sqlite3
+.DS_Store
