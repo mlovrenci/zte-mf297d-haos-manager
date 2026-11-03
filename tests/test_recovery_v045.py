@@ -30,6 +30,16 @@ class MalformedB08Recovery(unittest.TestCase):
         self.assertNotIn('secret',output)
         self.assertNotIn('192.168.1.80',output)
         self.assertNotIn('11:22:33:44:55:66',output)
+    def test_records_only_in_opt_in_local_view(self):
+        raw=b'{"current_static_addr_list":[{"hostname":"Office\xff\nHost", "ip":"192.168.1.80", "mac_addr":"11:22:33:44:55:66"}]}'
+        c=RouterClient('192.168.1.1');c.opener=Opener(raw)
+        result=c._diagnose_reservation_body('/goform/goform_get_cmd_process?cmd=current_static_addr_list',include_records=True)
+        self.assertEqual(result['list_length'],1)
+        self.assertEqual(result['records'][0]['ip'],'192.168.1.80')
+        self.assertEqual(len(result['records']),1)
+        self.assertEqual(result['status'],'field_present_nonempty')
+        self.assertNotIn('records',self.diagnose(raw))
+
     def test_empty_list_with_bad_byte_elsewhere(self):
         raw=b'{"current_static_addr_list":[],"random":"\xff\x00"}'
         r=self.diagnose(raw)

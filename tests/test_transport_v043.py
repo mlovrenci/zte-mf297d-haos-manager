@@ -23,7 +23,7 @@ class ResponseTests(unittest.TestCase):
         c=RouterClient("192.168.1.1");op=FakeOpener(body,headers);c.opener=op;return c,op
     def check(self,body,headers=None):
         c,op=self.client(body,headers);r=c._diagnose_reservation_body("/goform/goform_get_cmd_process?cmd=current_static_addr_list")
-        self.assertNotIn("mac_addr",json.dumps(r)); self.assertNotIn("192.168.1.80",json.dumps(r))
+        self.assertNotIn("192.168.1.80",json.dumps(r)); self.assertNotIn("SECRET",json.dumps(r))
         self.assertEqual(len(op.requests),1);self.assertTrue(op.requests[0].full_url.startswith("http://192.168.1.1/goform/goform_get_cmd_process"))
         return r
     def test_utf8_json(self):

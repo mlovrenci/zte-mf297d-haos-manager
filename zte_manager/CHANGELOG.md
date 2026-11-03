@@ -1,8 +1,12 @@
-## 0.4.9
+## 0.5.0
+- Display recovered `current_static_addr_list` records in a read-only LAN/DHCP table, with untrusted-value warning.
+- Keep reservation values off MQTT and service logs; no router writes added.
+
+## 0.5.0
 - Run Python under S6 `with-contenv` to expose HAOS Supervisor token for read-only MQTT service discovery.
 - Add non-secret MQTT transport error reason codes and token-path tests. No ZTE write changes.
 
-## 0.4.9
+## 0.5.0
 - Startup self-test uses only two read requests instead of the 20+ field inventory, avoiding long timeouts.
 - No router configuration changes.
 

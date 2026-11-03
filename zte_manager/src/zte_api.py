@@ -57,7 +57,7 @@ class RouterClient:
         headers = {"Referer": self.base + "/", "Origin": self.base,
                    "X-Requested-With": "XMLHttpRequest",
                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                   "User-Agent": "ZTE-Manager/0.4.9"}
+                   "User-Agent": "ZTE-Manager/0.5.0"}
         encoded = None
         if data is not None:
             encoded = urllib.parse.urlencode(data).encode()
@@ -146,7 +146,7 @@ class RouterClient:
         except (RouterError, ValueError, TypeError):
             return []
 
-    def _diagnose_reservation_body(self, path, form=None):
+    def _diagnose_reservation_body(self, path, form=None, include_records=False):
         """Inspect HTTP transport without exposing router body or credentials.
 
         Called ONLY after a UTF-8 failure from the legacy read request.
@@ -155,7 +155,7 @@ class RouterClient:
         headers = {"Referer": self.base + "/", "Origin": self.base,
                    "X-Requested-With": "XMLHttpRequest",
                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                   "User-Agent": "ZTE-Manager/0.4.9"}
+                   "User-Agent": "ZTE-Manager/0.5.0"}
         data = None
         if form is not None:
             data = urllib.parse.urlencode(form).encode("ascii")
@@ -307,6 +307,14 @@ class RouterClient:
                     out["list_item_types"] = sorted({type(v).__name__ for v in value[:25]})
                     if value and isinstance(value[0], dict):
                         out["first_item_field_count"] = len(value[0])
+                        out["first_item_field_names"] = [str(k)[:64] for k in list(value[0])[:16]]
+                    if include_records:
+                        # Opt-in for local authenticated Ingress UI only. The
+                        # recovered values are untrusted and NEVER used for writes.
+                        out["records"] = [{str(k)[:64]:str(v)[:256]
+                                           for k,v in list(record.items())[:16]
+                                           if isinstance(k,str) and isinstance(v,(str,int,float,bool))}
+                                          for record in value[:64] if isinstance(record,dict)]
                 if isinstance(value, dict):
                     out["object_field_count"] = len(value)
                 if isinstance(value, str):
@@ -319,7 +327,7 @@ class RouterClient:
         except (urllib.error.URLError, TimeoutError, OSError) as err:
             return {"status": "transport_error", "reason": type(err).__name__}
 
-    def probe_reservation_transport(self):
+    def probe_reservation_transport(self, include_records=False):
         """Read-only transport diagnosis; never returns raw reservation records.
 
         Some ZTE versions return errors to GET but accept POST to the GET endpoint.
@@ -343,6 +351,12 @@ class RouterClient:
                     output[label] = {"status": status, "value_type": type(v).__name__}
                     if isinstance(v, list):
                         output[label]["list_length"] = len(v)
+                        if v and isinstance(v[0],dict):
+                            output[label]["first_item_field_names"] = [str(k)[:64] for k in list(v[0])[:16]]
+                        if include_records:
+                            output[label]["records"] = [{str(k)[:64]:str(val)[:256]
+                                for k,val in list(row.items())[:16] if isinstance(k,str) and isinstance(val,(str,int,float,bool))}
+                                for row in v[:64] if isinstance(row,dict)]
                 else:
                     output[label] = {"status": "field_absent",
                                      "result_key_present": "result" in reply,
@@ -350,7 +364,7 @@ class RouterClient:
             except RouterError as exc:
                 cause = getattr(exc, "__cause__", None)
                 if isinstance(cause, UnicodeDecodeError):
-                    output[label] = self._diagnose_reservation_body(url, form)
+                    output[label] = self._diagnose_reservation_body(url, form, include_records=include_records)
                     continue
                 status = getattr(cause, "code", None)
                 output[label] = {"status": "request_error",
@@ -427,9 +441,19 @@ class RouterClient:
             data[group] = values
             present[group] = seen
             field_status[group] = statuses
-        transport_probe = self.probe_reservation_transport()
+        transport_probe = self.probe_reservation_transport(include_records=True)
+        # Return the recovered rows only in the local Ingress API response.
+        # The MQTT diagnostic path receives metadata-only transport_probe.
+        candidate = next((v for v in transport_probe.values() if v.get("records") and
+                          v.get("status")=="field_present_nonempty"), None)
+        if candidate:
+            data["reservations"]["current_static_addr_list"] = candidate["records"]
+            field_status["reservations"]["current_static_addr_list"] = "recovered_untrusted_list"
+        sanitized_transport = {name:{key:value for key,value in detail.items()
+                                     if key != "records"}
+                               for name,detail in transport_probe.items()}
         return {"fields_present": present, "field_status": field_status,
-                "data": data, "errors": errors, "transport_probe": transport_probe,
+                "data": data, "errors": errors, "transport_probe": sanitized_transport,
                 "note": "Returned empty list may mean no reservations OR unsupported API. "
                         "Goform read results never establish write support on B08."}
 

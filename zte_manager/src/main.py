@@ -1,4 +1,4 @@
-"""ZTE Manager v0.4.9: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.0: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -12,7 +12,7 @@ from time import monotonic, time
 from zte_api import RouterClient, RouterError
 from mqtt_probe import publish_probe, MQTTProbeError
 
-VERSION = "0.4.9"
+VERSION = "0.5.0"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -398,7 +398,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.4.9"
+    server_version = "ZTEManager/0.5.0"
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged

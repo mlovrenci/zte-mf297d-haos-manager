@@ -58,6 +58,19 @@ class MQTTTests(unittest.TestCase):
                     mqtt_probe.publish_probe({'status':'unconfirmed'})
                 self.assertEqual(mocked.call_args[0][0].get_header('Authorization'),'Bearer mock-token')
 
+    def test_local_rows_are_stripped_from_mqtt_summary(self):
+        from zte_api import RouterClient
+        with patch.object(RouterClient,'get',return_value={}),patch.object(RouterClient,'probe_reservation_transport',return_value={
+            'get': {'status':'field_present_nonempty','list_length':1,'records':[{'ip':'192.168.1.80','mac_addr':'SECRET'}]},
+            'post_read': {'status':'field_present_empty','list_length':0}
+        }):
+            details=RouterClient('192.168.1.1').dhcp_inventory()
+        self.assertEqual(details['data']['reservations']['current_static_addr_list'][0]['ip'],'192.168.1.80')
+        self.assertEqual(details['field_status']['reservations']['current_static_addr_list'],'recovered_untrusted_list')
+        self.assertNotIn('records',json.dumps(details['transport_probe']))
+        self.assertNotIn('192.168.1.80',json.dumps(main.summarize_dhcp_probe(details)))
+        self.assertNotIn('SECRET',json.dumps(main.summarize_dhcp_probe(details)))
+
     def test_optional_settings(self):
         self.assertIn('mqtt_diagnostics_enabled: false',(BASE.parent/'config.yaml').read_text())
         self.assertIn('startup_probe_once: true',(BASE.parent/'config.yaml').read_text())

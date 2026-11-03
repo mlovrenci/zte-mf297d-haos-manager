@@ -46,7 +46,15 @@ async function dhcpInventory(){
     const foundNonempty=entries.some(([,val])=>Array.isArray(val)&&val.length>0);
     const emptyList=Object.entries(statuses).filter(([,v])=>v==='returned_empty_list').map(([k])=>k);
     if(foundNonempty){
-      $('reservationsBox').innerHTML=entries.filter(([,v])=>Array.isArray(v)&&v.length).map(([field,val])=>`<article class="tile"><div class="key">${escapeHTML(field)}</div><div class="value">${escapeHTML(JSON.stringify(val))}</div></article>`).join('');
+      const rows=res.current_static_addr_list;
+      if(Array.isArray(rows)&&rows.length){
+        const columns=[...new Set(rows.flatMap(row=>Object.keys(row||{})))].slice(0,16);
+        const head=columns.map(key=>`<th>${escapeHTML(key)}</th>`).join('');
+        const body=rows.map((row,i)=>`<tr><td>${i+1}</td>${columns.map(key=>`<td>${escapeHTML(String(row?.[key]??''))}</td>`).join('')}</tr>`).join('');
+        $('reservationsBox').innerHTML=`<p class="hint reservation-wide">ZTE current_static_addr_list: ${rows.length} zapisa. Oporavljeno iz neispravnog B08 odgovora; samo za čitanje, vrijednosti nisu provjerene za write.</p><div class="reservation-wide reservation-scroll"><table class="reservation-table"><thead><tr><th>#</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+      }else{
+        $('reservationsBox').innerHTML=entries.filter(([,v])=>Array.isArray(v)&&v.length).map(([field,val])=>`<article class="tile"><div class="key">${escapeHTML(field)}</div><div class="value">${escapeHTML(JSON.stringify(val))}</div></article>`).join('');
+      }
     } else if(emptyList.length){
       $('reservationsBox').textContent=`API je vratio praznu listu (${emptyList.join(', ')}). Možda nema rezervacija ili firmware vraća prazno za nepodržane nazive. Write još nije potvrđen.`;
     } else $('reservationsBox').textContent='Nije pronađena popunjena lista rezervacija. Detalji po polju slijede; izostanak odgovora ne dokazuje da rezervacije nisu podržane.';
