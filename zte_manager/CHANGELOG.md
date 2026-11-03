@@ -49,3 +49,9 @@
 - Uses original ZTE WebUI fields for DHCP_RESERVATION_ADD/DEL and fixed dummy locally administered MAC plus 192.168.1.254 (outside known DHCP pool).
 - Checks firmware, subnet, DHCP lease range, existing entries, then attempts to verify add and remove only the exact test entry.
 - One-time marker prevents re-execution after reboot. No WAN/DHCP/Wi-Fi setting changes. Test button explicitly triggers a configuration write even with general writes disabled.
+
+## 0.5.2 - Verified DHCP reservation management
+- Add/Delete reservation editor in LAN / DHCP, backed by B08-tested `DHCP_RESERVATION_ADD` / `DHCP_RESERVATION_DEL`.
+- Two-phase prepare + typed confirmation, 90-second expiry, fresh MAC/IP-list fingerprint and firmware checks, max 10 entries, duplicate checks, IPv4/subnet validation.
+- Best-effort check for online clients using the requested IP with another MAC. Verified re-read after every write; no automatic retries or router reboots.
+- Independent scope: general `write_enabled` remains false, but reservation Add/Delete is enabled after successful A1 B08 functional test. No DNS Option 6 write until separately verified.

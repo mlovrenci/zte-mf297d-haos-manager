@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.1: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.2: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -12,8 +12,9 @@ from time import monotonic, time
 from zte_api import RouterClient, RouterError
 from mqtt_probe import publish_probe, MQTTProbeError
 from static_binding_test import listen_once as listen_static_binding_test
+from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -24,6 +25,7 @@ ROUTER_LOCK = RLock()
 PEERS = {"172.30.32.2", "127.0.0.1", "::1"}
 LOCK = RLock()
 PLANS = {}
+STATIC_PLANS = {}
 
 
 def options():
@@ -399,7 +401,7 @@ def monitor_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZTEManager/0.5.1"
+    server_version = "ZTEManager/0.5.2"
 
     def log_message(self, *args):
         pass  # passwords, tokens, URL params and POST bodies are not logged
@@ -509,6 +511,42 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict): raise ValueError("Neispravan payload")
             o = options()
+            if self.path == "/api/static_prepare":
+                action=str(data.get("action",""))
+                values=data.get("values",{})
+                if not isinstance(values,dict):raise ValueError("Nevaljana polja rezervacije")
+                with ROUTER_LOCK:
+                    client=connect(o)
+                    groups,errs=client.query_groups(["device","lan","dhcp"])
+                    rows=validated_rows(client)
+                    prepared=prepare_reservation(action,values,groups,rows)
+                    if action == "add":
+                        reject_active_ip_collision(client,prepared["mac"],prepared["ip"])
+                key=secrets.token_urlsafe(24)
+                with LOCK:
+                    STATIC_PLANS.clear()
+                    STATIC_PLANS[key]={**prepared,"expires":monotonic()+90}
+                return self.response(200,{"plan_id":key,"summary":prepared["summary"],
+                                          "confirm":prepared["confirm"],"expires_seconds":90,
+                                          "warning":"MAC-IP rezervacija bit će promijenjena nakon zasebne potvrde."})
+            if self.path == "/api/static_apply":
+                key=str(data.get("plan_id",""))
+                confirmation=str(data.get("confirmation",""))
+                with LOCK:
+                    prepared=STATIC_PLANS.pop(key,None)
+                if not prepared or prepared["expires"] < monotonic():
+                    raise ValueError("Priprema je istekla; ponovi radnju")
+                if confirmation!=prepared["confirm"]:
+                    raise ValueError("Potvrda nije točna; ništa nije zapisano")
+                with ROUTER_LOCK:
+                    client=connect(o)
+                    groups,errs=client.query_groups(["device","lan","dhcp"])
+                    rows=validated_rows(client)
+                    if prepared["action"]=="add":
+                        reject_active_ip_collision(client,prepared["mac"],prepared["ip"])
+                    result=execute_reservation(client,prepared,groups,rows)
+                safe_log("static_"+prepared["action"],result["status"])
+                return self.response(200,result)
             if self.path == "/api/prepare":
                 with ROUTER_LOCK:
                     client = connect(o)
