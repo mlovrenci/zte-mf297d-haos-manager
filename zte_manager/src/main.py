@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.3: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.4: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -12,10 +12,11 @@ from time import monotonic, time
 from zte_api import RouterClient, RouterError
 from mqtt_probe import publish_probe, publish_dns_probe, MQTTProbeError
 from dns_option6_probe import probe_dns_option6
+from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.3"
+VERSION = "0.5.4"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -416,6 +417,25 @@ def startup_dns_option6_probe():
             pass
 
 
+def startup_migration_inventory():
+    """One-time local MQTT inventory export for AdGuard DHCP migration.
+
+    The MQTT broker is the local HAOS service; no router credentials or
+    MAC/IP records are sent to GitHub, logs or external services.
+    """
+    threading.Event().wait(22)
+    try:
+        o = options()
+        with ROUTER_LOCK:
+            client = connect(o)
+            inventory = capture_inventory(client)
+        inventory["version"] = VERSION
+        inventory["checked_at"] = int(time())
+        publish_inventory(inventory)
+    except Exception as exc:
+        print(f"ZTE migration inventory unavailable: {type(exc).__name__}", flush=True)
+
+
 def monitor_loop():
     # Disabled by default. One small poll every N seconds when enabled.
     while True:
@@ -649,6 +669,7 @@ if __name__ == "__main__":
     threading.Thread(target=monitor_loop, name="zte-monitor", daemon=True).start()
     threading.Thread(target=startup_dhcp_probe, name="zte-dhcp-probe", daemon=True).start()
     threading.Thread(target=startup_dns_option6_probe, name="zte-dns-option6-probe", daemon=True).start()
+    threading.Thread(target=startup_migration_inventory, name="zte-migration-inventory", daemon=True).start()
     # Passive MQTT command subscriber: exposes a single-use HA diagnostic button.
     # Absolutely no router write occurs until the user presses this button.
     def start_static_test_listener():
