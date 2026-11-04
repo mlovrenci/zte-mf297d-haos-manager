@@ -29,4 +29,6 @@ jobs:
           node --check zte_manager/src/static/wifi-view.js
           node --check zte_manager/src/static/studio.js
           node --check zte_manager/src/static/dev-model.js
+          node --check zte_manager/src/static/preview.js
+          node --check zte_manager/src/static/wifi-draft.js
           node --test tests/*.cjs

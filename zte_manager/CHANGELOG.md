@@ -1,3 +1,11 @@
+## 0.5.8
+
+- New default read-only router overview with grouped LAN navigation and Wi-Fi drafts based on actual returned fields.
+- Dedicated snapshot GET endpoint; drafts never create server plans or executable Goform requests, even when legacy write mode is unlocked.
+- Missing values remain unknown; firmware mismatch and failed refresh block draft preparation. No assumed radio/client association.
+- DEV simulator remains at `demo`; existing controls remain at `live`.
+- B08 original web-code verification and write/readback testing remain outstanding. No new Wi-Fi writes are enabled.
+
 ## 0.5.7
 
 - New default DEV studio with grouped navigation and local-only Wi-Fi, device, reservation, LAN and DNS editors.

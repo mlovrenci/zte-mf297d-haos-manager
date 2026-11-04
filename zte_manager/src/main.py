@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.7: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.8: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -16,7 +16,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.7"
+VERSION = "0.5.8"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -487,8 +487,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.allowed(): return
         path = self.path.split("?",1)[0]
-        static = {"/": ("static/studio.html", "text/html; charset=utf-8"),
-                  "/index.html": ("static/studio.html", "text/html; charset=utf-8"),
+        static = {"/": ("static/preview.html", "text/html; charset=utf-8"),
+                  "/index.html": ("static/preview.html", "text/html; charset=utf-8"),
+                  "/demo": ("static/studio.html", "text/html; charset=utf-8"),
+                  "/static/wifi-draft.js": ("static/wifi-draft.js", "application/javascript; charset=utf-8"),
+                  "/static/preview.js": ("static/preview.js", "application/javascript; charset=utf-8"),
                   "/live": ("static/index.html", "text/html; charset=utf-8"),
                   "/static/studio.js": ("static/studio.js", "application/javascript; charset=utf-8"),
                   "/static/dev-model.js": ("static/dev-model.js", "application/javascript; charset=utf-8"),
@@ -505,6 +508,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self.response(200, {"version":VERSION,"router_ip":o["ip"],"configured":bool(o["password"]),
                                            "write_mode_source":o["write_mode_source"],"write_enabled":o["write_enabled"],"verified_writes":o["verified_writes"],"experimental_writes":o["experimental_writes"],"disruptive":o["disruptive"],"apn":o["apn"],"wifi_format":o["wifi_format"],"allow_reboot":o["allow_reboot"],"monitor_enabled":o["history"],"monitor_interval_seconds":o["interval"],"csrf":CSRF,
                                            "expected_firmware":o["firmware"]})
+            if path == "/api/preview_snapshot":
+                # Dedicated read path; no plan tokens, set(), MQTT or option changes.
+                with ROUTER_LOCK:
+                    client = connect(o)
+                    groups, errors = client.query_groups(["device", "internet", "signal", "wifi", "wifi_extra", "lan", "dhcp", "dns"])
+                    details = client.wifi_radio_details()
+                    clients_error = False
+                    try:
+                        clients, _ = client.clients()
+                    except RouterError:
+                        clients, clients_error = [], True
+                return self.response(200, {"groups":groups, "errors":{**errors, **details["errors"]},
+                    "fields":details["fields"], "clients":clients, "clients_error":clients_error,
+                    "sample_time":int(time()), "write_available":False})
             if path == "/api/state":
                 with ROUTER_LOCK:
                     client = connect(o)

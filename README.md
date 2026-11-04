@@ -71,3 +71,7 @@ On startup, separately checks likely DHCP/LAN DNS Goform keys and reads a bounde
 ### DEV studio (v0.5.7)
 
 The initial page is an isolated browser simulator with fictional data. Wi-Fi, device names, reservations, LAN/DHCP and DNS can be edited with a review step. No simulator action sends a router request; CSP blocks network connections. Refresh resets the demo. Use **Otvori aktivni router** to open the existing live panel. Simulator capabilities are not a claim of A1 B08 firmware support.
+
+### Read-backed preview (v0.5.8)
+
+The default page now reads actual router data through `GET api/preview_snapshot`. The isolated simulator is at `demo`, and existing controls remain at `live`. Wi-Fi SSID/channel/width drafts use only returned fields, require matching B08 firmware, and remain in browser memory. They show old/new values and explicit blockers, never produce an executable request or call a write/plan endpoint. Syntax validation is not firmware capability validation. Original B08 web-code inspection and controlled write/readback verification are still required. Refresh discards the editor; a failed refresh keeps old data visibly marked and blocks drafts.

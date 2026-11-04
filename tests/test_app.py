@@ -131,12 +131,26 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.7')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.8')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_studio_and_live_routes(self):
-  for path, marker in [("/", b"DEV studio"), ("/index.html", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
+  for path, marker in [("/", b"preview.js"), ("/index.html", b"preview.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
    with urlopen(self.addr+path,timeout=5) as response:
     self.assertIn(marker,response.read())
+ def test_preview_snapshot_cannot_write_or_create_plan(self):
+  plans=dict(main.PLANS)
+  with patch.object(FakeClient,'set',side_effect=AssertionError('router write')) as write:
+   result=self.fetch('/api/preview_snapshot')
+  write.assert_not_called()
+  self.assertFalse(result['write_available'])
+  self.assertEqual(result['groups']['device']['cr_version'],FIRMWARE)
+  self.assertEqual(main.PLANS,plans)
+  self.assertFalse(result['clients_error'])
+ def test_preview_clients_error_is_not_empty_success(self):
+  with patch.object(FakeClient,'clients',side_effect=RouterError('offline')):
+   result=self.fetch('/api/preview_snapshot')
+  self.assertTrue(result['clients_error'])
+  self.assertEqual(result['groups']['wifi']['wifi_chip1_ssid1_ssid'],'Home')
  def test_wifi_view_asset_served(self):
   with urlopen(self.addr+'/static/wifi-view.js',timeout=5) as response:
    self.assertIn('application/javascript',response.headers['Content-Type'])
