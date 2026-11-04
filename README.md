@@ -67,3 +67,7 @@ The local HAOS Ingress UI provides **Add/Delete** for MAC-IP reservations, using
 ## v0.5.3: DHCP DNS Option 6 read-only discovery
 
 On startup, separately checks likely DHCP/LAN DNS Goform keys and reads a bounded allowlist of original ZTE WebUI static JS/HTML assets to identify whether a dedicated DHCP DNS setter exists in the B08 build. Publishes metadata to the HA MQTT diagnostic entity **ZTE DHCP DNS Option 6 probe**. The status `candidate_found` is *not proof* that changing DNS for DHCP clients is supported. WAN DNS/APN DNS is distinct from DHCP Option 6. No DNS, DHCP pool, APN, Wi-Fi or other router settings are changed during this probe.
+
+### DEV studio (v0.5.7)
+
+The initial page is an isolated browser simulator with fictional data. Wi-Fi, device names, reservations, LAN/DHCP and DNS can be edited with a review step. No simulator action sends a router request; CSP blocks network connections. Refresh resets the demo. Use **Otvori aktivni router** to open the existing live panel. Simulator capabilities are not a claim of A1 B08 firmware support.

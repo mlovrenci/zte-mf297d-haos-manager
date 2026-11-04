@@ -23,8 +23,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: JavaScript syntax and Wi-Fi view tests
+      - name: JavaScript syntax and simulator tests
         run: |
           node --check zte_manager/src/static/app.js
           node --check zte_manager/src/static/wifi-view.js
-          node --test tests/test_wifi_view.cjs
+          node --check zte_manager/src/static/studio.js
+          node --check zte_manager/src/static/dev-model.js
+          node --test tests/*.cjs

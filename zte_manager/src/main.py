@@ -1,4 +1,4 @@
-"""ZTE Manager v0.5.6: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.5.7: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -16,7 +16,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.5.6"
+VERSION = "0.5.7"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -487,8 +487,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.allowed(): return
         path = self.path.split("?",1)[0]
-        static = {"/": ("static/index.html", "text/html; charset=utf-8"),
-                  "/index.html": ("static/index.html", "text/html; charset=utf-8"),
+        static = {"/": ("static/studio.html", "text/html; charset=utf-8"),
+                  "/index.html": ("static/studio.html", "text/html; charset=utf-8"),
+                  "/live": ("static/index.html", "text/html; charset=utf-8"),
+                  "/static/studio.js": ("static/studio.js", "application/javascript; charset=utf-8"),
+                  "/static/dev-model.js": ("static/dev-model.js", "application/javascript; charset=utf-8"),
+                  "/static/studio.css": ("static/studio.css", "text/css; charset=utf-8"),
                   "/static/app.js": ("static/app.js", "application/javascript; charset=utf-8"),
                   "/static/wifi-view.js": ("static/wifi-view.js", "application/javascript; charset=utf-8"),
                   "/static/style.css": ("static/style.css", "text/css; charset=utf-8")}

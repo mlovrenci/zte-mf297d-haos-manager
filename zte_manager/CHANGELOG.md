@@ -1,3 +1,10 @@
+## 0.5.7
+
+- New default DEV studio with grouped navigation and local-only Wi-Fi, device, reservation, LAN and DNS editors.
+- Review changes before applying; simulate rejection, timeout, empty lists and reconnection.
+- Live router panel preserved at `live`. Studio forbids network connections with CSP and resets on refresh.
+- Demo controls do not establish A1 B08 write support.
+
 ## 0.5.6
 
 - Tipka za uključivanje/isključivanje write moda (do restarta App-a), bez kontakta s routerom. Isključivanje blokira i DHCP rezervacije te poništava pripremljene radnje; pojedinačne potvrde i dodatne zaštite ostaju.
