@@ -84,7 +84,7 @@ Reservation reads are on demand and query only `current_static_addr_list`. Empty
 
 #### Development checks
 
-Run `python -m unittest discover -s tests -q`, then `npm ci --ignore-scripts` and `npm test`. Node dependencies are for tests only and are not shipped in the Python app image. DOM tests assert GET-only traffic, missing-field locks, stale-read handling, HTML escaping and browser-local names.
+Run `python tools/run_tests.py` (blocks non-loopback socket connections), then `npm ci --ignore-scripts` and `npm test`. Node dependencies are for tests only and are not shipped in the Python app image. DOM tests assert GET-only traffic, missing-field locks, stale-read handling, HTML escaping and browser-local names.
 
 #### Original B08 web-code evidence
 

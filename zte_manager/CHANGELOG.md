@@ -6,6 +6,7 @@
 - Targeted reservation read with explicit empty/unsupported/malformed status; no reservation write changes.
 - Diagnostic JSON export uses a strict identifier-free allowlist. Drafts expire after five minutes.
 - Added offline original-web-asset reference inventory with hashes; references do not certify B08 commands.
+- Python CI blocks non-loopback connections, keeping accidental router access out of unit tests.
 - Added reproducible DOM interaction tests to CI. Existing live writes and security gates are unchanged.
 
 ## 0.5.8
