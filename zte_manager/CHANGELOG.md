@@ -1,3 +1,13 @@
+## 0.6.0
+
+- Unified Wi-Fi/LAN device inventory, search, source filters, numeric IP/RSSI sorting and browser-local names.
+- Independent source errors and duplicate-IP observations without inferring offline state or confirmed address conflicts.
+- Comparison of consecutive successful observations and a 60-sample session LTE signal history; no automatic router polling.
+- Targeted reservation read with explicit empty/unsupported/malformed status; no reservation write changes.
+- Diagnostic JSON export uses a strict identifier-free allowlist. Drafts expire after five minutes.
+- Added offline original-web-asset reference inventory with hashes; references do not certify B08 commands.
+- Added reproducible DOM interaction tests to CI. Existing live writes and security gates are unchanged.
+
 ## 0.5.8
 
 - New default read-only router overview with grouped LAN navigation and Wi-Fi drafts based on actual returned fields.

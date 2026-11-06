@@ -102,8 +102,8 @@ class FakeClient:
  def query_groups(self, selected=None):
   groups={**{k:{} for k in ('device','internet','signal','lan','dhcp','dns','wifi')},**GROUPS}
   return ({k:groups.get(k,{}) for k in selected} if selected is not None else groups),{}
- def clients(self):return [],{}
- def lan_clients(self):return []
+ def clients(self, strict=False):return [],{}
+ def lan_clients(self, strict=False):return []
  def wifi_radio_details(self):return {'fields':{'wifi_lbd_enable':'1'},'field_status':{'wifi_lbd_enable':'returned'},'errors':{}}
  def dhcp_inventory(self):return {'fields_present':{},'data':{},'errors':{}}
  def set(self,*args): return {'result':'accepted'}
@@ -131,7 +131,7 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.5.8')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.6.0')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_studio_and_live_routes(self):
   for path, marker in [("/", b"preview.js"), ("/index.html", b"preview.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
@@ -151,6 +151,12 @@ class HTTPTests(unittest.TestCase):
    result=self.fetch('/api/preview_snapshot')
   self.assertTrue(result['clients_error'])
   self.assertEqual(result['groups']['wifi']['wifi_chip1_ssid1_ssid'],'Home')
+ def test_preview_reservations_are_read_only(self):
+  with patch.object(FakeClient,'get',return_value={'current_static_addr_list':[]},create=True), patch.object(FakeClient,'set',side_effect=AssertionError('write')) as write:
+   result=self.fetch('/api/preview_reservations')
+  write.assert_not_called()
+  self.assertEqual(result['status'],'empty_or_unsupported')
+  self.assertFalse(result['write_available'])
  def test_wifi_view_asset_served(self):
   with urlopen(self.addr+'/static/wifi-view.js',timeout=5) as response:
    self.assertIn('application/javascript',response.headers['Content-Type'])

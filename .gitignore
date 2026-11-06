@@ -10,3 +10,4 @@ options.json
 zte_audit.jsonl
 zte_history.sqlite3
 .DS_Store
+node_modules/

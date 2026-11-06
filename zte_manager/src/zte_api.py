@@ -152,20 +152,24 @@ class RouterClient:
             "errors": errors,
         }
 
-    def clients(self):
+    def clients(self, strict=False):
         # IMPORTANT: MF297D / A1 B08: v0.1 queried station_list *alone*.
         # v0.2 combined it with host_name_web/mac_addr_web/ip_addr_web,
         # which can change Goform multi_data behavior and hide valid clients.
         # Keep the proven v0.1 single-key request, even when additional
         # client metadata is available on other ZTE firmware builds.
         raw = self.get(["station_list"])
+        if strict and "station_list" not in raw:
+            raise RouterError("station_list nije vraćen")
         result = raw.get("station_list", [])
         if isinstance(result, str):
             try:
                 result = json.loads(result) if result else []
             except (ValueError, TypeError):
+                if strict: raise RouterError("Neispravan station_list")
                 result = []
         if not isinstance(result, list):
+            if strict: raise RouterError("Neispravan station_list")
             result = []
         clients = []
         for item in result[:128]:
@@ -181,16 +185,21 @@ class RouterClient:
             clients.append(row)
         return clients, {}
 
-    def lan_clients(self):
+    def lan_clients(self, strict=False):
         try:
-            raw = self.get(["lan_station_list"]).get("lan_station_list", [])
+            reply = self.get(["lan_station_list"])
+            if strict and "lan_station_list" not in reply:
+                raise RouterError("lan_station_list nije vraćen")
+            raw = reply.get("lan_station_list", [])
             if isinstance(raw, str):
                 raw = json.loads(raw) if raw else []
             if not isinstance(raw, list):
+                if strict: raise RouterError("Neispravan lan_station_list")
                 raw = []
             return [{k: item.get(k, "") for k in ("hostname", "ip_addr", "mac_addr", "ssid_index")}
                     for item in raw[:128] if isinstance(item, dict)]
         except (RouterError, ValueError, TypeError):
+            if strict: raise RouterError("LAN klijenti nisu dostupni")
             return []
 
     def _diagnose_reservation_body(self, path, form=None, include_records=False):
@@ -522,3 +531,4 @@ class RouterClient:
         if result not in ("0", "success"):
             raise RouterError("ZTE nije potvrdio spremanje (odgovor nije success/0)")
         return {"result": "accepted", "goformId": command}
+

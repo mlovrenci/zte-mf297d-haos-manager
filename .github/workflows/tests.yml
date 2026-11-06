@@ -4,11 +4,15 @@ on:
     paths:
       - 'zte_manager/**'
       - 'tests/**'
+      - 'tools/**'
+      - 'package*.json'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
       - 'zte_manager/**'
       - 'tests/**'
+      - 'tools/**'
+      - 'package*.json'
       - '.github/workflows/tests.yml'
 jobs:
   test:
@@ -23,6 +27,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install UI test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: JavaScript syntax and simulator tests
         run: |
           node --check zte_manager/src/static/app.js
@@ -31,4 +37,5 @@ jobs:
           node --check zte_manager/src/static/dev-model.js
           node --check zte_manager/src/static/preview.js
           node --check zte_manager/src/static/wifi-draft.js
+          node --check zte_manager/src/static/network-insights.js
           node --test tests/*.cjs

@@ -1,0 +1,1 @@
+{"private":true,"name":"zte-manager-ui-tests","scripts":{"test":"node --test tests/*.cjs"},"devDependencies":{"jsdom":"26.1.0"}}

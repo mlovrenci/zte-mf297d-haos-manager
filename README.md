@@ -75,3 +75,17 @@ The initial page is an isolated browser simulator with fictional data. Wi-Fi, de
 ### Read-backed preview (v0.5.8)
 
 The default page now reads actual router data through `GET api/preview_snapshot`. The isolated simulator is at `demo`, and existing controls remain at `live`. Wi-Fi SSID/channel/width drafts use only returned fields, require matching B08 firmware, and remain in browser memory. They show old/new values and explicit blockers, never produce an executable request or call a write/plan endpoint. Syntax validation is not firmware capability validation. Original B08 web-code inspection and controlled write/readback verification are still required. Refresh discards the editor; a failed refresh keeps old data visibly marked and blocks drafts.
+
+### Read-only workspace (v0.6.0)
+
+The default page combines Wi-Fi and LAN observations with source status, search/filter/sort, local device names, consecutive-read differences, session LTE readings and identifier-free diagnostic export. Local names are saved under `zte-manager-device-names-v1` in that browser's localStorage; clearing a name restores the reported name. Nothing renames devices in HA or the router. History (up to 60 reads) and comparisons are memory-only and disappear on refresh. Reads remain manual after the initial load.
+
+Reservation reads are on demand and query only `current_static_addr_list`. Empty or missing data never establishes that no reservations exist, and returned rows are explicitly unverified. No writes or broad discovery are performed by this page. Drafts cannot be submitted after five minutes or a failed read.
+
+#### Development checks
+
+Run `python -m unittest discover -s tests -q`, then `npm ci --ignore-scripts` and `npm test`. Node dependencies are for tests only and are not shipped in the Python app image. DOM tests assert GET-only traffic, missing-field locks, stale-read handling, HTML escaping and browser-local names.
+
+#### Original B08 web-code evidence
+
+`python tools/audit_b08_assets.py /path/to/original/web/assets` inventories local `.js` and `.html` files, hashes and literal command/field references without network access or executing them. Do not use HAR files, configuration exports or credentials. A reference is not an executable mapping or proof of support. Original assets with verified provenance, parameter semantics and controlled write/readback validation are still required before enabling new B08 writes.
