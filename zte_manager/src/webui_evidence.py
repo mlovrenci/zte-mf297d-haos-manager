@@ -95,6 +95,7 @@ def inspect(client, opener=None, clock=time.monotonic):
     queue = [client.base + '/']
     module_base = client.base + '/'
     aliases = {}
+    entry_urls = set()
     visited, files, issues, attempts = set(), [], [], []
     total = 0
     while queue and len(visited) < MAX_FILES and total < MAX_TOTAL_BYTES:
@@ -134,11 +135,12 @@ def inspect(client, opener=None, clock=time.monotonic):
                     'parameter_references':[x for x in PARAMETERS if re.search(r'\b'+re.escape(x)+r'\b',source)]})
                 if path.endswith('.js'):
                     # Only a literal baseUrl can alter resolution, always constrained to this router.
-                    if config['base_url']:
+                    if url in entry_urls and config['base_url']:
                         candidate_base = urllib.parse.urljoin(client.base+'/',config['base_url'].rstrip('/')+'/')
                         if safe_url(client.base,candidate_base,'probe.js'):
                             module_base = candidate_base
-                    aliases.update(config['paths'])
+                    if url in entry_urls:
+                        aliases.update(config['paths'])
                     for name in module_references(source):
                         matching = sorted((key for key in aliases if name == key or name.startswith(key+'/')),key=len,reverse=True)
                         resolved = aliases[matching[0]]+name[len(matching[0]):] if matching else name
@@ -152,6 +154,7 @@ def inspect(client, opener=None, clock=time.monotonic):
                         candidate = safe_url(client.base, url, reference)
                         if candidate and reference in parser.main_paths:
                             module_base = candidate.rsplit('/',1)[0]+'/'
+                            entry_urls.add(candidate)
                         if candidate and candidate not in visited and candidate not in queue and len(queue) < MAX_FILES:
                             queue.append(candidate)
         except urllib.error.HTTPError as exc:

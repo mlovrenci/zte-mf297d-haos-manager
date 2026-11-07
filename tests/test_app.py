@@ -131,7 +131,7 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.6.3')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.6.4')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_studio_and_live_routes(self):
   for path, marker in [("/", b"preview.js"), ("/index.html", b"preview.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:

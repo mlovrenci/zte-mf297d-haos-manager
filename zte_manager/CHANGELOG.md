@@ -1,3 +1,8 @@
+## 0.6.4
+
+- Fix static module resolution: apply loader configuration only from observed data-main entry points, not library default objects.
+- Regression test covers stock RequireJS default baseUrl preceding the application entry point.
+
 ## 0.6.3
 
 - Resolve literal RequireJS path aliases and quoted baseUrl properties; report bounded attempted static paths and statuses for diagnosis.

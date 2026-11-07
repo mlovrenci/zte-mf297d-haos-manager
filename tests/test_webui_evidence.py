@@ -50,7 +50,12 @@ class EvidenceTests(unittest.TestCase):
 
  def test_literal_path_aliases(self):
   source=b'require.config({"baseUrl":"assets",paths:{service:"net/service"}});require(["service"],fn);'
-  o=Opener({BASE+'/':b'<script src="/main.js"></script>',BASE+'/main.js':source,BASE+'/assets/net/service.js':b'SET_WIFI_INFO'})
+  o=Opener({BASE+'/':b'<script data-main="main"></script>',BASE+'/main.js':source,BASE+'/assets/net/service.js':b'SET_WIFI_INFO'})
   r=inspect(SimpleNamespace(base=BASE),opener=o)
   self.assertEqual(r['files'][-1]['path'],'/assets/net/service.js')
   self.assertEqual(literal_config('paths:{service: compute()}')['paths'],{})
+
+ def test_loader_defaults_do_not_override_data_main_base(self):
+  o=Opener({BASE+'/':b'<script src="/js/require.js" data-main="js/main"></script>',BASE+'/js/require.js':b'var defaults={baseUrl:"./"};',BASE+'/js/main.js':b'require(["service"],fn)',BASE+'/js/service.js':b'SET_WIFI_INFO'})
+  r=inspect(SimpleNamespace(base=BASE),opener=o)
+  self.assertEqual(r['files'][-1]['path'],'/js/service.js')
