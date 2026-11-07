@@ -1,3 +1,8 @@
+## 0.6.2
+
+- Extend static inspection to literal RequireJS/AMD dependencies; no execution or computed module resolution.
+- Accommodate bundled stock scripts with bounded 1 MiB/file, 2 MiB total and 12-request limits.
+
 ## 0.6.1
 
 - On-demand original web UI reference inspection in System: GET-only static HTML/JS, same origin, redirects checked before following, bounded file count/size/time.

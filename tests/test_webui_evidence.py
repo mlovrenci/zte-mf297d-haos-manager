@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from urllib.error import HTTPError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'zte_manager/src'))
-from webui_evidence import inspect, safe_url, MAX_FILE_BYTES
+from webui_evidence import inspect, safe_url, MAX_FILE_BYTES, module_references
 BASE='http://192.168.1.1'
 class Response(io.BytesIO):
  def __init__(self,url,body):super().__init__(body);self.url=url;self.headers={}
@@ -40,3 +40,10 @@ class EvidenceTests(unittest.TestCase):
   o=Opener({BASE+'/':HTTPError(BASE+'/',302,'redirect',{'Location':'/index.html'},None),BASE+'/index.html':b'<script data-main="js/main"></script>',BASE+'/js/main.js':b'var x=1;'})
   r=inspect(SimpleNamespace(base=BASE),opener=o)
   self.assertEqual([x['path'] for x in r['files']],['/index.html','/js/main.js'])
+
+ def test_literal_modules_only(self):
+  self.assertEqual(module_references('require(["service", "text!secret", "../x", "exports"], fn);'),['service'])
+  o=Opener({BASE+'/':b'<script data-main="js/main"></script>', BASE+'/js/main.js':b'require(["service"],fn)',BASE+'/js/service.js':b'SET_WIFI_SSID1_SETTINGS'})
+  r=inspect(SimpleNamespace(base=BASE),opener=o)
+  self.assertEqual(r['files'][-1]['path'],'/js/service.js')
+  self.assertEqual(r['files'][-1]['command_references'],['SET_WIFI_SSID1_SETTINGS'])

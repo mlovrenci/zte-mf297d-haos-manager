@@ -11,9 +11,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-MAX_FILES = 8
-MAX_FILE_BYTES = 262144
-MAX_TOTAL_BYTES = 1048576
+MAX_FILES = 12
+MAX_FILE_BYTES = 1048576
+MAX_TOTAL_BYTES = 2097152
 MAX_SECONDS = 15
 COMMANDS = ('SET_WIFI_INFO', 'SET_WIFI_SSID1_SETTINGS', 'SET_WIFI_SSID2_SETTINGS')
 PARAMETERS = ('ssid', 'wifiEnabled', 'm_ssid_enable', 'broadcastSsidEnabled',
@@ -31,6 +31,7 @@ class Scripts(HTMLParser):
     def __init__(self):
         super().__init__()
         self.paths = []
+        self.main_paths = []
 
     def handle_starttag(self, tag, attrs):
         if tag.lower() == 'script':
@@ -41,6 +42,8 @@ class Scripts(HTMLParser):
                     if key == 'data-main' and not urllib.parse.urlsplit(value).path.endswith('.js'):
                         value += '.js'
                     self.paths.append(value)
+                    if key == 'data-main':
+                        self.main_paths.append(value)
 
 
 def safe_url(base, parent, reference):
@@ -59,12 +62,24 @@ def safe_url(base, parent, reference):
     return urllib.parse.urlunsplit((u.scheme, u.netloc, path, '', ''))
 
 
+def module_references(source):
+    """Literal AMD dependency arrays only; not an evaluator or complete JS parser."""
+    names = []
+    for block in re.findall(r'\b(?:require|requirejs|define)\s*\(\s*\[([^\]]{0,8192})\]', source):
+        for name in re.findall(r"[\"']([A-Za-z0-9_./-]{1,100})[\"']", block):
+            if name not in ('require', 'exports', 'module') and '..' not in name and not name.startswith('/'):
+                if name not in names:
+                    names.append(name)
+    return names[:32]
+
+
 def inspect(client, opener=None, clock=time.monotonic):
     if opener is None:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
             urllib.request.HTTPCookieProcessor(client.cookies), NoRedirect())
     start = clock()
     queue = [client.base + '/']
+    module_base = client.base + '/'
     visited, files, issues = set(), [], []
     total = 0
     while queue and len(visited) < MAX_FILES and total < MAX_TOTAL_BYTES:
@@ -94,13 +109,27 @@ def inspect(client, opener=None, clock=time.monotonic):
                 source = body.decode('utf-8', errors='replace')
                 path = urllib.parse.urlsplit(url).path or '/'
                 files.append({'path':path, 'sha256':hashlib.sha256(body).hexdigest(), 'bytes':len(body),
+                    'module_references':module_references(source) if path.endswith('.js') else [],
                     'command_references':[x for x in COMMANDS if re.search(r'\b'+re.escape(x)+r'\b',source)],
                     'parameter_references':[x for x in PARAMETERS if re.search(r'\b'+re.escape(x)+r'\b',source)]})
+                if path.endswith('.js'):
+                    # Only a literal baseUrl can alter resolution, always constrained to this router.
+                    match = re.search(r"\bbaseUrl\s*:\s*[\"']([A-Za-z0-9_./-]+)[\"']", source)
+                    if match:
+                        candidate_base = urllib.parse.urljoin(client.base+'/',match.group(1).rstrip('/')+'/')
+                        if safe_url(client.base,candidate_base,'probe.js'):
+                            module_base = candidate_base
+                    for name in module_references(source):
+                        candidate = safe_url(client.base,module_base,name if name.endswith('.js') else name+'.js')
+                        if candidate and candidate not in visited and candidate not in queue and len(queue) < MAX_FILES:
+                            queue.append(candidate)
                 if path == '/' or path.endswith(('.html','.htm')):
                     parser = Scripts()
                     parser.feed(source)
                     for reference in parser.paths:
                         candidate = safe_url(client.base, url, reference)
+                        if candidate and reference in parser.main_paths:
+                            module_base = candidate.rsplit('/',1)[0]+'/'
                         if candidate and candidate not in visited and candidate not in queue and len(queue) < MAX_FILES:
                             queue.append(candidate)
         except urllib.error.HTTPError as exc:
