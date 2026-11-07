@@ -1,3 +1,8 @@
+## 0.6.5
+
+- Add a fixed-path, firmware/hash-pinned static Wi-Fi source evidence read for parameter analysis. Unknown assets fail closed.
+- No new router writes or changes to live write gates.
+
 ## 0.6.4
 
 - Fix static module resolution: apply loader configuration only from observed data-main entry points, not library default objects.

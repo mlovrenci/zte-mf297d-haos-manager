@@ -176,3 +176,42 @@ def inspect(client, opener=None, clock=time.monotonic):
             'attempts':attempts, 'issues':sorted(set(issues)), 'write_verified':False,
             'limits':{'files':MAX_FILES,'file_bytes':MAX_FILE_BYTES,'seconds':MAX_SECONDS},
             'note':'Static references are not parameter mappings or proof of B08 write support. Dynamic modules may be absent.'}
+
+
+SERVICE_SHA256 = '8d5588e3b912827bc09a6380a84f4bef2815b56ce0ad487fdc63c5148c13aaa8'
+
+
+def wifi_source(client, opener=None):
+    """Read excerpts only from the previously observed stock B08 service asset.
+
+    This explicitly exposes static source excerpts, never evaluated values.
+    Any changed firmware or asset hash fails closed. No caller-controlled path.
+    """
+    groups, errors = client.query_groups(['device'])
+    if errors or groups.get('device', {}).get('cr_version') != 'CR_A1HRMF297DV1.0.0B08':
+        return {'status':'firmware_mismatch','excerpts':[], 'write_verified':False}
+    if opener is None:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+            urllib.request.HTTPCookieProcessor(client.cookies), NoRedirect())
+    url = client.base + '/js/service.js'
+    try:
+        req = urllib.request.Request(url, method='GET', headers={'Accept-Encoding':'identity'})
+        with opener.open(req, timeout=3) as response:
+            if response.geturl() != url:
+                raise ValueError('Redirect')
+            body = response.read(262145)
+            digest = hashlib.sha256(body).hexdigest()
+            if len(body) > 262144 or digest != SERVICE_SHA256:
+                return {'status':'asset_mismatch','excerpts':[], 'write_verified':False}
+        source = body.decode('utf-8')
+        excerpts=[]
+        for command in COMMANDS:
+            for match in list(re.finditer(re.escape(command), source))[:8]:
+                start=max(0,match.start()-1800)
+                end=min(len(source),match.end()+2800)
+                excerpts.append({'command':command,'offset':match.start(),
+                                 'start':start,'end':end,'source':source[start:end]})
+        return {'status':'static_source_only','sha256':digest,'path':'/js/service.js',
+                'excerpts':excerpts,'write_verified':False}
+    except (OSError, ValueError, urllib.error.URLError):
+        return {'status':'unavailable','excerpts':[], 'write_verified':False}

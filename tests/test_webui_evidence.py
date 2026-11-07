@@ -59,3 +59,13 @@ class EvidenceTests(unittest.TestCase):
   o=Opener({BASE+'/':b'<script src="/js/require.js" data-main="js/main"></script>',BASE+'/js/require.js':b'var defaults={baseUrl:"./"};',BASE+'/js/main.js':b'require(["service"],fn)',BASE+'/js/service.js':b'SET_WIFI_INFO'})
   r=inspect(SimpleNamespace(base=BASE),opener=o)
   self.assertEqual(r['files'][-1]['path'],'/js/service.js')
+
+ def test_pinned_source_rejects_changed_asset_and_firmware(self):
+  from webui_evidence import wifi_source
+  c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'other'}},{}))
+  o=Opener({})
+  self.assertEqual(wifi_source(c,o)['status'],'firmware_mismatch');self.assertFalse(o.requests)
+  c.query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{})
+  o=Opener({BASE+'/js/service.js':b'SECRET unexpected source SET_WIFI_INFO'})
+  result=wifi_source(c,o)
+  self.assertEqual(result['status'],'asset_mismatch');self.assertEqual(result['excerpts'],[])
