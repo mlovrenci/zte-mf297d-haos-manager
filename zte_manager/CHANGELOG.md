@@ -1,3 +1,9 @@
+## 0.6.1
+
+- On-demand original web UI reference inspection in System: GET-only static HTML/JS, same origin, redirects checked before following, bounded file count/size/time.
+- Returns hashes and allowlisted Wi-Fi command/parameter names only, never raw assets or secrets. No JavaScript execution or write-support claims.
+- No scan during startup or normal refresh. Dynamic module coverage remains incomplete.
+
 ## 0.6.0
 
 - Unified Wi-Fi/LAN device inventory, search, source filters, numeric IP/RSSI sorting and browser-local names.

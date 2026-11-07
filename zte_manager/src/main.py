@@ -1,4 +1,4 @@
-"""ZTE Manager v0.6.0: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.6.1: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import RLock
 from time import monotonic, time
 from zte_api import RouterClient, RouterError
+from webui_evidence import inspect as inspect_webui
 from preview_data import collect as collect_preview, reservations as preview_reservations
 from mqtt_probe import publish_probe, publish_dns_probe, MQTTProbeError
 from dns_option6_probe import probe_dns_option6
@@ -17,7 +18,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -514,6 +515,10 @@ class Handler(BaseHTTPRequestHandler):
                 with ROUTER_LOCK:
                     result = collect_preview(connect(o))
                 result["version"] = VERSION
+                return self.response(200, result)
+            if path == "/api/webui_evidence":
+                with ROUTER_LOCK:
+                    result = inspect_webui(connect(o))
                 return self.response(200, result)
             if path == "/api/preview_reservations":
                 with ROUTER_LOCK:
