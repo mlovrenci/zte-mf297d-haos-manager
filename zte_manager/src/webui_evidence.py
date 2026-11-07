@@ -73,6 +73,20 @@ def module_references(source):
     return names[:32]
 
 
+def literal_config(source):
+    """Extract bounded literal RequireJS paths; intentionally ignore expressions."""
+    base = re.search(r"[\"']?baseUrl[\"']?\s*:\s*[\"']([A-Za-z0-9_./-]+)[\"']", source)
+    block = re.search(r"[\"']?paths[\"']?\s*:\s*\{([^}]{0,8192})\}", source)
+    aliases = {}
+    if block:
+        for match in re.finditer(r"(?:[\"']([A-Za-z0-9_/-]+)[\"']|([A-Za-z0-9_]+))\s*:\s*[\"']([A-Za-z0-9_./-]+)[\"']",block.group(1)):
+            key = match.group(1) or match.group(2)
+            value = match.group(3)
+            if '..' not in value and not value.startswith('/'):
+                aliases[key] = value
+    return {'base_url':base.group(1) if base else None, 'paths':dict(list(aliases.items())[:64])}
+
+
 def inspect(client, opener=None, clock=time.monotonic):
     if opener is None:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
@@ -80,7 +94,8 @@ def inspect(client, opener=None, clock=time.monotonic):
     start = clock()
     queue = [client.base + '/']
     module_base = client.base + '/'
-    visited, files, issues = set(), [], []
+    aliases = {}
+    visited, files, issues, attempts = set(), [], [], []
     total = 0
     while queue and len(visited) < MAX_FILES and total < MAX_TOTAL_BYTES:
         remaining = MAX_SECONDS - (clock() - start)
@@ -91,6 +106,8 @@ def inspect(client, opener=None, clock=time.monotonic):
         if url in visited:
             continue
         visited.add(url)
+        attempt = {'path':urllib.parse.urlsplit(url).path, 'status':'pending'}
+        attempts.append(attempt)
         request = urllib.request.Request(url, method='GET', headers={'Accept-Encoding':'identity', 'Accept':'text/html, application/javascript, text/javascript'})
         try:
             with opener.open(request, timeout=min(3, remaining)) as response:
@@ -107,20 +124,25 @@ def inspect(client, opener=None, clock=time.monotonic):
                     issues.append('size_limit')
                     continue
                 source = body.decode('utf-8', errors='replace')
+                attempt['status'] = 'read'
+                config = literal_config(source) if urllib.parse.urlsplit(url).path.endswith('.js') else {'base_url':None,'paths':{}}
                 path = urllib.parse.urlsplit(url).path or '/'
                 files.append({'path':path, 'sha256':hashlib.sha256(body).hexdigest(), 'bytes':len(body),
+                    'loader_config':config,
                     'module_references':module_references(source) if path.endswith('.js') else [],
                     'command_references':[x for x in COMMANDS if re.search(r'\b'+re.escape(x)+r'\b',source)],
                     'parameter_references':[x for x in PARAMETERS if re.search(r'\b'+re.escape(x)+r'\b',source)]})
                 if path.endswith('.js'):
                     # Only a literal baseUrl can alter resolution, always constrained to this router.
-                    match = re.search(r"\bbaseUrl\s*:\s*[\"']([A-Za-z0-9_./-]+)[\"']", source)
-                    if match:
-                        candidate_base = urllib.parse.urljoin(client.base+'/',match.group(1).rstrip('/')+'/')
+                    if config['base_url']:
+                        candidate_base = urllib.parse.urljoin(client.base+'/',config['base_url'].rstrip('/')+'/')
                         if safe_url(client.base,candidate_base,'probe.js'):
                             module_base = candidate_base
+                    aliases.update(config['paths'])
                     for name in module_references(source):
-                        candidate = safe_url(client.base,module_base,name if name.endswith('.js') else name+'.js')
+                        matching = sorted((key for key in aliases if name == key or name.startswith(key+'/')),key=len,reverse=True)
+                        resolved = aliases[matching[0]]+name[len(matching[0]):] if matching else name
+                        candidate = safe_url(client.base,module_base,resolved if resolved.endswith('.js') else resolved+'.js')
                         if candidate and candidate not in visited and candidate not in queue and len(queue) < MAX_FILES:
                             queue.append(candidate)
                 if path == '/' or path.endswith(('.html','.htm')):
@@ -133,6 +155,7 @@ def inspect(client, opener=None, clock=time.monotonic):
                         if candidate and candidate not in visited and candidate not in queue and len(queue) < MAX_FILES:
                             queue.append(candidate)
         except urllib.error.HTTPError as exc:
+            attempt['status'] = 'http_'+str(exc.code)
             if exc.code in (301,302,303,307,308):
                 candidate = safe_url(client.base, url, exc.headers.get('Location',''))
                 if candidate and candidate not in visited and len(queue) < MAX_FILES:
@@ -142,10 +165,11 @@ def inspect(client, opener=None, clock=time.monotonic):
             else:
                 issues.append('http_error')
         except (OSError, ValueError, urllib.error.URLError):
+            attempt['status'] = 'unavailable'
             issues.append('asset_unavailable')
     if queue:
         issues.append('scan_incomplete')
     return {'status':'references_only' if files else 'unavailable', 'files':files,
-            'issues':sorted(set(issues)), 'write_verified':False,
+            'attempts':attempts, 'issues':sorted(set(issues)), 'write_verified':False,
             'limits':{'files':MAX_FILES,'file_bytes':MAX_FILE_BYTES,'seconds':MAX_SECONDS},
             'note':'Static references are not parameter mappings or proof of B08 write support. Dynamic modules may be absent.'}

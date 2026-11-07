@@ -1,3 +1,8 @@
+## 0.6.3
+
+- Resolve literal RequireJS path aliases and quoted baseUrl properties; report bounded attempted static paths and statuses for diagnosis.
+- Computed path expressions remain unsupported and all write gates remain unchanged.
+
 ## 0.6.2
 
 - Extend static inspection to literal RequireJS/AMD dependencies; no execution or computed module resolution.

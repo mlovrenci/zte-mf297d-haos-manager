@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from urllib.error import HTTPError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'zte_manager/src'))
-from webui_evidence import inspect, safe_url, MAX_FILE_BYTES, module_references
+from webui_evidence import inspect, safe_url, MAX_FILE_BYTES, module_references, literal_config
 BASE='http://192.168.1.1'
 class Response(io.BytesIO):
  def __init__(self,url,body):super().__init__(body);self.url=url;self.headers={}
@@ -47,3 +47,10 @@ class EvidenceTests(unittest.TestCase):
   r=inspect(SimpleNamespace(base=BASE),opener=o)
   self.assertEqual(r['files'][-1]['path'],'/js/service.js')
   self.assertEqual(r['files'][-1]['command_references'],['SET_WIFI_SSID1_SETTINGS'])
+
+ def test_literal_path_aliases(self):
+  source=b'require.config({"baseUrl":"assets",paths:{service:"net/service"}});require(["service"],fn);'
+  o=Opener({BASE+'/':b'<script src="/main.js"></script>',BASE+'/main.js':source,BASE+'/assets/net/service.js':b'SET_WIFI_INFO'})
+  r=inspect(SimpleNamespace(base=BASE),opener=o)
+  self.assertEqual(r['files'][-1]['path'],'/assets/net/service.js')
+  self.assertEqual(literal_config('paths:{service: compute()}')['paths'],{})
