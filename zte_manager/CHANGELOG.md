@@ -1,3 +1,8 @@
+## 0.7.2
+
+- Extend the pinned source-only review to exact stock `/js/config/config.js` (SHA-256 matched previously) to identify the model and WAN-mode-dependent menu filename. The B08 menu constructs `config/<DEVICE>/<menu_variant>` dynamically, which explains why literal Wi-Fi paths were absent from the initial scan.
+- All three asset hashes must match before any source is returned. No Goform writes, runtime configuration edits, or new router GET field probes.
+
 ## 0.7.1
 
 - Add a separate, manual, firmware/hash-pinned static source diagnostic for the stock B08 menu and router scripts to inspect dynamic UI routes after the v0.7.0 module scan found no direct Wi-Fi module paths.

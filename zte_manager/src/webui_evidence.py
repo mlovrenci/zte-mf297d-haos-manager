@@ -216,11 +216,12 @@ SERVICE_SHA256 = '8d5588e3b912827bc09a6380a84f4bef2815b56ce0ad487fdc63c5148c13aa
 WIFI_UI_PINNED = {
     '/js/config/menu.js': 'f0802e32266558b16f49ec7c517cbb3248d65f8d2b019dea9b2245bb642ea68c',
     '/js/router.js': 'a5a878ca911a2a5d65160a3a9cf98938e6a9faaba7f50cd25a5e57a2a9daa377',
+    '/js/config/config.js': '5bcda613d55ad9d2da687ffe022712d5419856061dcdcd51c6b654f307d99154',
 }
 
 
 def wifi_ui_source(client, opener=None):
-    """Return only hash-pinned stock B08 UI scripts for route analysis.
+    """Return only hash-pinned stock B08 UI scripts for variant route analysis.
 
     This diagnostic is explicitly invoked, not part of normal preview reads.
     Original static scripts are served verbatim only when exact known hashes
