@@ -109,7 +109,7 @@ class EvidenceTests(unittest.TestCase):
   menu=b'define(["service"],fn);';router=b'define(["config/menu"],fn);'
   o=Opener({BASE+'/js/config/menu.js':menu,BASE+'/js/router.js':router})
   with patch.dict(WIFI_UI_PINNED,{'/js/config/menu.js':hashlib.sha256(menu).hexdigest(),
-                                   '/js/router.js':hashlib.sha256(router).hexdigest()}):
+                                   '/js/router.js':hashlib.sha256(router).hexdigest()},clear=True):
    r=wifi_ui_source(c,o)
   self.assertEqual(r['status'],'pinned_static_source_only')
   self.assertEqual([x['source'] for x in r['files']],[menu.decode(),router.decode()])
@@ -119,7 +119,8 @@ class EvidenceTests(unittest.TestCase):
  def test_pinned_wifi_ui_source_does_not_leak_partial_asset_on_changed_file(self):
   c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{}))
   o=Opener({BASE+'/js/config/menu.js':b'sensitive prototype text',BASE+'/js/router.js':b'unknown changed'})
-  with patch.dict(WIFI_UI_PINNED,{'/js/config/menu.js':hashlib.sha256(b'sensitive prototype text').hexdigest()}):
+  with patch.dict(WIFI_UI_PINNED,{'/js/config/menu.js':hashlib.sha256(b'sensitive prototype text').hexdigest(),
+                                   '/js/router.js':WIFI_UI_PINNED['/js/router.js']},clear=True):
    r=wifi_ui_source(c,o)
   self.assertEqual(r['status'],'asset_mismatch')
   self.assertEqual(r['files'],[])
