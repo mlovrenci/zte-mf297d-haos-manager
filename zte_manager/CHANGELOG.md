@@ -1,3 +1,8 @@
+## 0.7.3
+
+- Following the observed stock `DEVICE="cpe/MF297D"` and live read-only `opms_wan_mode="PPP"`, the explicit GET-only Wi-Fi scanner now starts at the exact device-specific configuration and `menu_4ggateway` route table as well as the original entry points.
+- Follows literal `wifi/…` routes found in that menu as statically served scripts. Same-origin, file/size/time bounds, no Goform requests or configuration changes. Actual support is still unverified.
+
 ## 0.7.2
 
 - Extend the pinned source-only review to exact stock `/js/config/config.js` (SHA-256 matched previously) to identify the model and WAN-mode-dependent menu filename. The B08 menu constructs `config/<DEVICE>/<menu_variant>` dynamically, which explains why literal Wi-Fi paths were absent from the initial scan.
