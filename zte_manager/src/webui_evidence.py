@@ -20,7 +20,11 @@ PARAMETERS = ('ssid', 'wifiEnabled', 'm_ssid_enable', 'broadcastSsidEnabled',
               'MAX_Access_num', 'security_mode', 'cipher', 'NoForwarding',
               'passphrase', 'wifi_lbd_enable', 'wifi_chip1_channel',
               'wifi_chip2_channel', 'wifi_chip1_bandwidth', 'wifi_chip2_bandwidth')
-WIFI_MODULE_SEEDS = ('/js/config/menu.js', '/js/router.js', '/js/config/config.js')
+WIFI_MODULE_SEEDS = (
+    '/js/config/menu.js', '/js/router.js', '/js/config/config.js',
+    '/js/config/cpe/MF297D/config.js',
+    '/js/config/cpe/MF297D/menu_4ggateway.js',
+)
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):

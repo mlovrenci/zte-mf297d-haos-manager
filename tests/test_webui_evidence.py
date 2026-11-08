@@ -77,15 +77,20 @@ class EvidenceTests(unittest.TestCase):
    BASE+'/js/config/menu.js':b'const menu={wifi:"wifi/basic",wireless:"wifi/advance",unsafe:"../goform/SET_WIFI_INFO"};',
    BASE+'/js/router.js':b'define(["service", "wifi/security", "other"],fn);',
    BASE+'/js/config/config.js':b'paths: {wifi: "wifi"};',
+   BASE+'/js/config/cpe/MF297D/config.js':b'define({PRODUCT_TYPE:"CPE"});',
+   BASE+'/js/config/cpe/MF297D/menu_4ggateway.js':b'[{hash:"#wifi",path:"wifi/device",level:"2"}]',
    BASE+'/js/wifi/basic.js':b'var channel="Channel";',
    BASE+'/js/wifi/advance.js':b'var width="wifi_11n_cap";',
-   BASE+'/js/wifi/security.js':b'var secret="DO_NOT_ECHO";'
+   BASE+'/js/wifi/security.js':b'var secret="DO_NOT_ECHO";',
+   BASE+'/js/wifi/device.js':b'var channel="m_Channel";'
   })
   r=inspect_wifi_modules(SimpleNamespace(base=BASE),opener=o)
   self.assertEqual(r['scan_scope'],'wifi_modules')
   self.assertEqual([f['path'] for f in r['files']],
                    ['/js/config/menu.js','/js/router.js','/js/config/config.js',
-                    '/js/wifi/basic.js','/js/wifi/advance.js','/js/wifi/security.js'])
+                    '/js/config/cpe/MF297D/config.js','/js/config/cpe/MF297D/menu_4ggateway.js',
+                    '/js/wifi/basic.js','/js/wifi/advance.js','/js/wifi/security.js',
+                    '/js/wifi/device.js'])
   self.assertEqual(r['files'][0]['wifi_literal_modules'],['wifi/basic','wifi/advance'])
   self.assertNotIn('DO_NOT_ECHO',str(r))
   self.assertFalse(r['write_verified'])
@@ -95,10 +100,12 @@ class EvidenceTests(unittest.TestCase):
  def test_wifi_module_scan_cannot_leave_router_on_redirect(self):
   o=Opener({BASE+'/js/config/menu.js':HTTPError(BASE+'/js/config/menu.js',302,'redirect',
                   {'Location':'https://evil.test/menu.js'},None),
-            BASE+'/js/router.js':b'', BASE+'/js/config/config.js':b''})
+            BASE+'/js/router.js':b'', BASE+'/js/config/config.js':b'',
+            BASE+'/js/config/cpe/MF297D/config.js':b'',
+            BASE+'/js/config/cpe/MF297D/menu_4ggateway.js':b''})
   r=inspect_wifi_modules(SimpleNamespace(base=BASE),opener=o)
   self.assertIn('redirect_blocked',r['issues'])
-  self.assertEqual(len(o.requests),3)
+  self.assertEqual(len(o.requests),5)
 
  def test_pinned_wifi_ui_source_requires_exact_firmware_and_both_asset_hashes(self):
   c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'wrong'}},{}))
