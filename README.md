@@ -102,6 +102,8 @@ Version 0.6.2 additionally follows literal RequireJS/AMD dependency arrays witho
 
 `GET /api/wifi_getter_source_evidence` (v0.7.6) separately returns short, bounded excerpts of only five original getter *definitions* from the same hash-pinned B08 `/js/service.js` asset. It is an on-demand static-source review, not a radio-state poll; it cannot execute service functions or change router configuration. A missing getter is identified without broadening the source returned.
 
+Since v0.7.7, this reader additionally resolves literal minified export aliases into their original `function` declarations. Unresolved aliases are labelled rather than assumed to represent working getters.
+
 ### Reviewed service contracts (v0.6.6)
 
 `GET /api/wifi_contracts` returns reviewed parameter-name mappings from the pinned B08 service functions, with no network call or executable plan. The pinned status getter maps chip1/chip2 `ssid1` to main and `ssid2` to guest; this **does not** identify which write command changes a guest SSID. `SET_WIFI_INFO` has two distinct builders; the power-off builder drops other caller fields. Password encoding remains conditional on the original config flag. The read-only Wi-Fi view additionally probes non-secret advanced keys seen in the stock getter: `Channel`, `wifi_11n_cap`, their `m_` counterparts, plus guest client limits and two raw global status fields from stock `gt`. These remain raw codes rather than assumed MHz/band mappings. The privacy-safe Wi-Fi export reports field presence only.

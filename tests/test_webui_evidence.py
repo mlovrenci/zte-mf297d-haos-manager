@@ -172,8 +172,23 @@ class EvidenceTests(unittest.TestCase):
   self.assertEqual(result['status'],'pinned_static_getters_only')
   self.assertEqual([e['getter'] for e in result['excerpts']],['getWifiAccessPointInfo','getWifiModuleSwitchStatus'])
   self.assertIn('getDfsEaseSetting',result['missing'])
+  self.assertTrue(all(e['definition_found'] for e in result['excerpts']))
   self.assertTrue(all(q.get_method()=='GET' and q.full_url.endswith('/js/service.js') for q in o.requests))
   self.assertFalse(result['write_verified'])
+ def test_pinned_service_getters_follow_literal_minified_export_aliases(self):
+  c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{}))
+  js=b'function kj(){return {nv:"wifi_chip1_channel"}};var api={getWifiAccessPointInfo:kj,getDfsEaseSetting:zz};'
+  o=Opener({BASE+'/js/service.js':js})
+  with patch('webui_evidence.SERVICE_SHA256',hashlib.sha256(js).hexdigest()):
+   result=wifi_getter_source(c,o)
+  self.assertEqual(result['status'],'pinned_static_getters_only')
+  access=next(e for e in result['excerpts'] if e['getter']=='getWifiAccessPointInfo')
+  self.assertEqual(access['binding'],'kj')
+  self.assertTrue(access['definition_found'])
+  self.assertIn('function kj()',access['source'])
+  dfs=next(e for e in result['excerpts'] if e['getter']=='getDfsEaseSetting')
+  self.assertFalse(dfs['definition_found'])
+  self.assertIn('getDfsEaseSetting:zz',dfs['mapping_source'])
  def test_service_getter_excerpts_fail_closed_on_changed_asset_and_firmware(self):
   c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'wrong'}},{}))
   o=Opener({})
