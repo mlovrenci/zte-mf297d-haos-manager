@@ -1,3 +1,8 @@
+## 0.7.1
+
+- Add a separate, manual, firmware/hash-pinned static source diagnostic for the stock B08 menu and router scripts to inspect dynamic UI routes after the v0.7.0 module scan found no direct Wi-Fi module paths.
+- Fixed paths only; two bounded, same-origin GETs, no JavaScript execution, no user configuration, no Goform requests, and no new write capability. Changed assets fail closed without returning partial source.
+
 ## 0.7.0
 
 - Add an explicit, focused stock WebUI Wi-Fi module inventory to the read-only **Sustav** panel. Starts only at fixed `/js/config/menu.js`, `/js/router.js`, and `/js/config/config.js` paths, then follows literal Wi-Fi-related static module references.

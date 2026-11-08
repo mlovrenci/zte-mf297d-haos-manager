@@ -213,6 +213,41 @@ def inspect_wifi_modules(client, opener=None, clock=time.monotonic):
 
 
 SERVICE_SHA256 = '8d5588e3b912827bc09a6380a84f4bef2815b56ce0ad487fdc63c5148c13aaa8'
+WIFI_UI_PINNED = {
+    '/js/config/menu.js': 'f0802e32266558b16f49ec7c517cbb3248d65f8d2b019dea9b2245bb642ea68c',
+    '/js/router.js': 'a5a878ca911a2a5d65160a3a9cf98938e6a9faaba7f50cd25a5e57a2a9daa377',
+}
+
+
+def wifi_ui_source(client, opener=None):
+    """Return only hash-pinned stock B08 UI scripts for route analysis.
+
+    This diagnostic is explicitly invoked, not part of normal preview reads.
+    Original static scripts are served verbatim only when exact known hashes
+    and firmware match; no user-supplied path or dynamic router data is read.
+    """
+    groups, errors = client.query_groups(['device'])
+    if errors or groups.get('device', {}).get('cr_version') != 'CR_A1HRMF297DV1.0.0B08':
+        return {'status': 'firmware_mismatch', 'files': [], 'write_verified': False}
+    if opener is None:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+            urllib.request.HTTPCookieProcessor(client.cookies), NoRedirect())
+    files = []
+    try:
+        for path, expected_sha in WIFI_UI_PINNED.items():
+            url = client.base + path
+            req = urllib.request.Request(url, method='GET', headers={'Accept-Encoding': 'identity'})
+            with opener.open(req, timeout=3) as response:
+                if response.geturl() != url or response.headers.get('Content-Encoding', 'identity').lower() not in ('', 'identity'):
+                    raise ValueError('Unexpected response')
+                body = response.read(65537)
+            digest = hashlib.sha256(body).hexdigest()
+            if len(body) > 65536 or digest != expected_sha:
+                return {'status': 'asset_mismatch', 'files': [], 'write_verified': False}
+            files.append({'path': path, 'sha256': digest, 'source': body.decode('utf-8')})
+        return {'status': 'pinned_static_source_only', 'files': files, 'write_verified': False}
+    except (OSError, UnicodeError, ValueError, urllib.error.URLError):
+        return {'status': 'unavailable', 'files': [], 'write_verified': False}
 
 
 def wifi_source(client, opener=None):
