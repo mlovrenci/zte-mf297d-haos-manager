@@ -131,7 +131,7 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.7.9')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.8.0')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_studio_and_live_routes(self):
   for path, marker in [("/", b"preview.js"), ("/index.html", b"preview.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
@@ -197,6 +197,11 @@ class HTTPTests(unittest.TestCase):
   with patch.object(FakeClient,'wifi_original_radio_read',return_value=evidence,create=True) as radios, patch.object(FakeClient,'set',side_effect=AssertionError('router write')) as write:
    self.assertEqual(self.fetch('/api/wifi_original_radio_read'),evidence)
   radios.assert_called_once();write.assert_not_called()
+ def test_original_ap_read_route_cannot_write(self):
+  evidence={'status':'read_only','ap_status':'observed','access_points':[], 'write_available':False}
+  with patch.object(FakeClient,'wifi_original_ap_read',return_value=evidence,create=True) as access_points, patch.object(FakeClient,'set',side_effect=AssertionError('router write')) as write:
+   self.assertEqual(self.fetch('/api/wifi_original_ap_read'),evidence)
+  access_points.assert_called_once();write.assert_not_called()
  def test_wifi_details_retains_radio_if_station_list_fails(self):
   with patch.object(FakeClient,'clients',side_effect=RouterError('station_list unavailable')):
    response=self.fetch('/api/wifi_details')

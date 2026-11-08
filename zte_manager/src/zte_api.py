@@ -62,6 +62,8 @@ WIFI_DETAIL_PROBES = {
 WIFI_CLIENT_METRICS = ("rssi", "signal", "signal_strength", "rx_rate", "tx_rate")
 STOCK_B08_RADIO_FIELDS = ("ChipIndex", "WirelessMode", "CountryCode", "Channel",
                           "rate", "Band", "BandWidth", "HT_MCS", "ApMaxStationNumber")
+STOCK_B08_AP_FLAGS = ("AccessPointSwitchStatus", "ApBroadcastDisabled", "ApIsolate")
+STOCK_B08_AP_AUTH = frozenset(("OPEN", "WPAPSK", "WPA2PSK", "WPAWPA2PSK", "WPA3SAE", "WPA2WPA3PSK"))
 
 
 class RouterClient:
@@ -208,6 +210,60 @@ class RouterClient:
         return {"status":"read_only", "radio_status":radio_status,
                 "switch_status":switch_status, "radios":radios, "module":module,
                 "write_available":False}
+
+    def wifi_original_ap_read(self):
+        """On-demand B08 access-point GET, projected before any response leaves HA.
+
+        The stock queryAccessPointInfo getter can return Wi-Fi passwords and
+        SSIDs. Do not return or log its ResponseList (even on parse errors).
+        Only the four chip/AP pairs established by the pinned stock callers
+        may appear, with bounded, non-secret status fields.
+        """
+        groups, errors = self.query_groups(["device"])
+        if errors or groups.get("device", {}).get("cr_version") != "CR_A1HRMF297DV1.0.0B08":
+            return {"status": "firmware_mismatch", "ap_status": "not_queried",
+                    "access_points": [], "write_available": False}
+        rows = []
+        try:
+            raw = self.get(["queryAccessPointInfo"])
+            response = raw.get("ResponseList") if isinstance(raw, dict) else None
+            if isinstance(response, str):
+                response = json.loads(response)
+            if (not isinstance(response, list) or len(response) > 8 or
+                    any(not isinstance(item, dict) for item in response)):
+                return {"status": "read_only", "ap_status": "unsupported_or_invalid_shape",
+                        "access_points": [], "write_available": False}
+            seen = set()
+            for item in response:
+                chip, ap = item.get("ChipIndex"), item.get("AccessPointIndex")
+                if (isinstance(chip, bool) or isinstance(ap, bool) or
+                        str(chip) not in ("0", "1") or str(ap) not in ("0", "1")):
+                    continue
+                pair = (str(chip), str(ap))
+                if pair in seen:
+                    return {"status": "read_only", "ap_status": "unsupported_or_invalid_shape",
+                            "access_points": [], "write_available": False}
+                seen.add(pair)
+                fields = {}
+                for key in STOCK_B08_AP_FLAGS:
+                    val = item.get(key)
+                    if not isinstance(val, bool) and isinstance(val, (str, int)) and str(val) in ("0", "1"):
+                        fields[key] = str(val)
+                max_clients = item.get("ApMaxStationNumber")
+                if (not isinstance(max_clients, bool) and isinstance(max_clients, (str, int)) and
+                        str(max_clients).isdigit() and len(str(max_clients)) <= 4 and
+                        0 <= int(max_clients) <= 1024):
+                    fields["ApMaxStationNumber"] = str(max_clients)
+                auth = item.get("AuthMode")
+                if isinstance(auth, str) and auth in STOCK_B08_AP_AUTH:
+                    fields["AuthMode"] = auth
+                rows.append({"chip_index": pair[0], "ap_index": pair[1], "fields": fields})
+            status = "observed" if rows else ("empty" if not response else "unknown_indices")
+        except (RouterError, ValueError, TypeError, OverflowError):
+            status = "read_unavailable"
+            rows = []
+        return {"status": "read_only", "ap_status": status,
+                "access_points": rows, "write_available": False}
 
     def clients(self, strict=False):
         # IMPORTANT: MF297D / A1 B08: v0.1 queried station_list *alone*.
