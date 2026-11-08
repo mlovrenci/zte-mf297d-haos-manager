@@ -34,6 +34,17 @@ def catalogue():
     return {'source_sha256':SERVICE_SHA256,'source_path':'/js/service.js',
             'evidence':'service_function_review','write_verified':False,'sendable':False,
             'contracts':deepcopy(_BASE),
+            'read_mappings':{
+                'source_function':'gt',
+                'main_ssid':{'radio1':'wifi_chip1_ssid1_ssid',
+                             'radio2':'wifi_chip2_ssid1_ssid'},
+                'guest_ssid':{'radio1':'wifi_chip1_ssid2_ssid',
+                              'radio2':'wifi_chip2_ssid2_ssid'},
+                'global_guest_switch':'guest_switch',
+                'per_guest_switches':['wifi_chip1_ssid2_switch_onoff',
+                                      'wifi_chip2_ssid2_switch_onoff'],
+                'note':'Stock status getter labels SSID2 as guest; this does not map a guest SSID to any write command.',
+            },
             'unresolved':['UI caller to radio/SSID mapping','Meaning of coded channel/width/security values',
                           'Required unchanged values and config flags','Shared transport/authentication wrapper Je',
                           'Controlled live write followed by independent readback']}
