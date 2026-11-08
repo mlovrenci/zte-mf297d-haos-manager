@@ -9,9 +9,11 @@ test('Wi-Fi compatibility export reports only allowlisted field presence, never 
  s.fields={Channel:'SECRET_CHANNEL',wifi_11n_cap:'SECRET_BANDWIDTH',strange_key:'SECRET_UNKNOWN',wifi_band:''};
  s.fields.wifi_chip1_ssid2_max_access_num='SECRET_GUEST_LIMIT';
  s.fields.m_HideSSID='SECRET_GUEST_VISIBILITY';
+ s.fields.selectedChannel='SECRET_CHANNEL_ALIAS';
  s.groups.wifi.guest_switch='SECRET_GUEST_SWITCH';
  s.errors.wifi_extra='SECRET_ROUTER_FAILURE';
  s.errors.b08_guest='SECRET_GUEST_READ_FAILURE';
+ s.errors.b08_advanced_aliases='SECRET_ALIAS_READ_FAILURE';
  const report=n.wifiCompatibility(s),data=JSON.stringify(report);
  assert.equal(report.firmware_matches_b08,true);
  assert.equal(report.networks.radio1_ssid1.wifi_chip1_ssid1_ssid,'returned');
@@ -23,6 +25,9 @@ test('Wi-Fi compatibility export reports only allowlisted field presence, never 
  assert.equal(report.guest.guest_switch,'returned');
  assert.equal(report.guest.wifi_chip2_ssid2_max_access_num,'not_returned');
  assert.equal(report.guest_read_failed,true);
+ assert.equal(report.alias_read_failed,true);
+ assert.equal(report.setter_named_read_candidates.selectedChannel,'returned');
+ assert.equal(report.setter_named_read_candidates.wifiMode,'not_returned');
  assert.equal(report.wifi_extra_group_read_failed,true);
  assert.equal(report.write_verified,false);
  assert.equal(report.values_included,false);

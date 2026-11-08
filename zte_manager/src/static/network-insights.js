@@ -58,8 +58,10 @@ const NetworkInsights = (() => {
   return {schema:1,kind:'wifi_read_compatibility',firmware_matches_b08:groups.device?.cr_version==='CR_A1HRMF297DV1.0.0B08',
    wifi_group_read_failed:!!snapshot?.errors?.wifi,wifi_extra_group_read_failed:!!snapshot?.errors?.wifi_extra,
    advanced_read_failed:!!snapshot?.errors?.b08_advanced||!!snapshot?.errors?.b08_advanced_secondary,
+   alias_read_failed:!!snapshot?.errors?.b08_advanced_aliases,
    guest_read_failed:!!snapshot?.errors?.b08_guest,
    networks,advanced:presence(['WirelessMode','m_WirelessMode','CountryCode','m_CountryCode','Channel','m_Channel','HT_MCS','wifi_band','m_wifi_band','wifi_11n_cap','m_wifi_11n_cap','m_band_enable','wifi_lbd_enable','wifi_dfs_status','wifi_eacs_enable','wifi_enable','wifi_5g_enable']),
+   setter_named_read_candidates:presence(['selectedChannel','wifiMode','countryCode','abg_rate']),
    guest:presence(['guest_switch','m_ssid_enable','m_HideSSID','wifi_chip1_ssid2_max_access_num','wifi_chip2_ssid2_max_access_num']),
    values_included:false,write_verified:false};
  }
