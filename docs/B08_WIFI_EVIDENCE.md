@@ -10,7 +10,7 @@ Observed 2026-11-07 through ZTE Manager v0.6.4, using bounded GET-only static in
 - Command references: `SET_WIFI_INFO`, `SET_WIFI_SSID1_SETTINGS`, `SET_WIFI_SSID2_SETTINGS`.
 - Parameter references: `ssid`, `wifiEnabled`, `m_ssid_enable`, `broadcastSsidEnabled`, `MAX_Access_num`, `security_mode`, `cipher`, `NoForwarding`, `passphrase`, `wifi_lbd_enable`.
 
-The scanner finds literal names anywhere in the file. It does NOT yet associate each parameter with a command or establish required fields, value encoding, authentication handling, radio/SSID mapping, supported channels, side effects, or successful readback. No new writes are enabled based on these references.
+The scanner finds literal names anywhere in the file. The generic scanner does not associate parameters with commands. The subsequent pinned source review below establishes some builder mappings, but not complete requirements, authentication, radio/SSID mapping, supported values, side effects or successful readback. No new writes are enabled based on these references.
 
 ## Other observed original assets
 
@@ -24,8 +24,23 @@ The scanner finds literal names anywhere in the file. It does NOT yet associate 
 
 ## Remaining verification
 
-1. Inspect individual service functions and their UI callers; map fields, required unchanged values, encoding and band selection.
+1. Inspect UI callers and the shared transport wrapper; establish required unchanged values, configuration flags and radio/SSID selection.
 2. Build non-sendable request previews from that evidence and validate against synthetic fixtures.
 3. Only after separate user approval, test one controlled live change with before/after reads. A `success` response alone does not establish application.
 
 Channel and bandwidth candidates in the Manager's current read probes did not return values in the actual B08 snapshot. Their editors remain disabled; no values are guessed.
+
+## Pinned service review (v0.6.6)
+
+The static catalogue at `/api/wifi_contracts` records these mappings from the pinned source. It does not contact the router, construct an executable request, or enable writes.
+
+| Builder | Observed mapping / behavior |
+| --- | --- |
+| `u`, SSID1 | `ssid ← SSID`, `broadcastSsidEnabled ← broadcast`, `MAX_Access_num ← station`, `security_mode ← AuthMode`, `cipher ← cipher`, `NoForwarding ← NoForwarding` |
+| `c`, SSID2 | `m_SSID ← m_SSID`, `m_HideSSID ← m_broadcast`, `m_MAX_Access_num ← m_station`, `m_AuthMode ← m_AuthMode`, `cipher ← m_cipher`, `m_NoForwarding ← m_NoForwarding` |
+| `f`, SET_WIFI_INFO | Disabling Wi-Fi keeps only `wifiEnabled`; otherwise caller properties pass through. |
+| `mt`, SET_WIFI_INFO | `wifiMode ← mode`, `countryCode ← countryCode`, `selectedChannel ← channel`, both station limits; band/rate/width depend on configuration flags. |
+
+Both SSID builders recognize `WPAPSKWPA2PSK` and `WPA2PSK` for their protected branch. The password is base64-encoded only when `config.PASSWORD_ENCODE` is true. SSID2 uses `m_WPAPSK1` and `m_EncrypType`; SSID1 uses `passphrase` and `security_shared_mode`. This does not establish support for WPA3 in these builders. SSID2 must not be equated with a guest network or a particular radio without caller evidence.
+
+Original getter `pt` requests `WirelessMode`, `CountryCode`, `Channel`, `HT_MCS`, `wifi_band`, `wifi_11n_cap`, and corresponding `m_` settings. These non-secret keys are now read separately from the earlier candidates. The UI displays returned channel/width/region values verbatim; width codes are not labelled MHz and are not assigned to chip1/chip2 editors. No passwords or PSKs are requested.

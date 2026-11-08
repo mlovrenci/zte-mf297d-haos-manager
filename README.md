@@ -99,3 +99,7 @@ Version 0.6.2 additionally follows literal RequireJS/AMD dependency arrays witho
 ### Pinned source excerpts (v0.6.5)
 
 `GET /api/wifi_source_evidence` is a separate developer read API. It checks B08 firmware and the exact previously observed `/js/service.js` SHA-256, then returns bounded static source excerpts surrounding the three allowlisted Wi-Fi command names. It never evaluates source or returns runtime router values. Unknown firmware/hash returns no excerpts. The generic web UI inspector still omits raw source. This API creates no write plan and cannot send a command.
+
+### Reviewed service contracts (v0.6.6)
+
+`GET /api/wifi_contracts` returns reviewed parameter-name mappings from the pinned B08 service functions, with no network call or executable plan. SSID1/SSID2 command names do not establish radio or guest-network routing. `SET_WIFI_INFO` has two distinct builders; the power-off builder drops other caller fields. Password encoding remains conditional on the original config flag. The read-only Wi-Fi view additionally probes non-secret advanced keys seen in the stock getter: `Channel`, `wifi_11n_cap`, and their `m_` counterparts. These remain raw codes rather than assumed MHz/band mappings.

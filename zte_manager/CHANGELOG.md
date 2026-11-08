@@ -1,3 +1,9 @@
+## 0.6.6
+
+- Document reviewed SSID1/SSID2 parameter mappings and separate SET_WIFI_INFO builder variants in a non-sendable catalogue.
+- Probe exact non-secret advanced Wi-Fi read keys found in stock B08 service.js; display raw channel/width codes without guessing radio mappings.
+- No live write commands added or enabled.
+
 ## 0.6.5
 
 - Add a fixed-path, firmware/hash-pinned static Wi-Fi source evidence read for parameter analysis. Unknown assets fail closed.

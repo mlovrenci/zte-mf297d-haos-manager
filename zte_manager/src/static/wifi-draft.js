@@ -29,7 +29,7 @@ const WifiDraft = (() => {
     }
     if(!changes.length)throw Error('Nema promjena za pregled.');
     return {mode:'local_draft_only',firmware:expected,network:id,sample_time:snapshot.sample_time,changes,sendable:false,command:null,
-      blockers:['Nije provjeren izvorni B08 web-kod i mapiranje parametara za ovaj radio/SSID.','Nisu potvrđeni dopušteni kanali/širine, obavezna polja ni utjecaj na ostale mreže.','Nema odobrenog live testa ni potvrde ponovnim očitanjem.']};
+      blockers:['Struktura servisnih naredbi je pregledana; povezivanje UI pozivatelja s ovim radiom/SSID-om još nije potvrđeno.','Nisu potvrđeni dopušteni kanali/širine, obavezna polja ni utjecaj na ostale mreže.','Nema odobrenog live testa ni potvrde ponovnim očitanjem.']};
   }
   return {networks,plan,expected};
 })();

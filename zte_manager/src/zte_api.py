@@ -41,6 +41,9 @@ GROUPS = {
 # status refreshes and background sampling do not issue extra radio probes.
 # Never add password, PSK, WPS PIN or session fields here.
 WIFI_DETAIL_PROBES = {
+    # Exact non-secret read keys observed in stock B08 service.js function pt.
+    "b08_advanced": ["WirelessMode", "CountryCode", "Channel", "HT_MCS", "wifi_band", "wifi_11n_cap"],
+    "b08_advanced_secondary": ["m_WirelessMode", "m_CountryCode", "m_Channel", "m_wifi_band", "m_wifi_11n_cap", "m_band_enable"],
     "steering": ["wifi_lbd_enable", "wifi_dfs_status", "wifi_eacs_enable", "wifi_enable", "wifi_5g_enable"],
     "channels": ["wifi_chip1_channel", "wifi_chip2_channel", "wifi_chip1_bandwidth", "wifi_chip2_bandwidth"],
     "guest_clients": ["wifi_chip1_ssid2_access_sta_num", "wifi_chip2_ssid2_access_sta_num"],
