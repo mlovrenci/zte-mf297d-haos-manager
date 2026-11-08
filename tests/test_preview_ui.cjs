@@ -6,8 +6,8 @@ function setup(){
  w.TextEncoder=TextEncoder;w.AbortController=AbortController;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
  let fail=false,httpError=false,invalid=false,name='Actual home',now=Date.now();w.Date.now=()=>now;
- const snap=()=>({version:'0.6.8',groups:{device:{cr_version:'CR_A1HRMF297DV1.0.0B08'},wifi:{wifi_chip1_ssid1_ssid:name,guest_switch:'0'},wifi_extra:{wifi_chip1_ssid2_ssid:'Guest private',wifi_chip1_ssid2_switch_onoff:'1'},signal:{lte_rsrp:'-90',Z_SINR:'0'}},fields:{wifi_chip1_ssid2_max_access_num:'8',m_HideSSID:'0'},clients:[],sources:{wifi:{status:'ok',rows:[{hostname:'Phone',mac_addr:'02:00:00:00:00:01',ip_addr:'192.168.1.2'}]},lan:{status:'unavailable',rows:[]}},sample_time:Math.floor(now/1000),errors:{}});
- w.fetch=async(url,options)=>{calls.push({url,method:options.method});if(fail)throw Error('offline');return {ok:!httpError,status:httpError?403:200,json:async()=>invalid?{}:url==='api/webui_evidence'?{files:[{path:'/index.html',sha256:'a'.repeat(64),command_references:[]}],issues:[],write_verified:false}:url==='api/preview_reservations'?{status:'empty_or_unsupported',rows:[]}:snap()};};
+ const snap=()=>({version:'0.7.0',groups:{device:{cr_version:'CR_A1HRMF297DV1.0.0B08'},wifi:{wifi_chip1_ssid1_ssid:name,guest_switch:'0'},wifi_extra:{wifi_chip1_ssid2_ssid:'Guest private',wifi_chip1_ssid2_switch_onoff:'1'},signal:{lte_rsrp:'-90',Z_SINR:'0'}},fields:{wifi_chip1_ssid2_max_access_num:'8',m_HideSSID:'0'},clients:[],sources:{wifi:{status:'ok',rows:[{hostname:'Phone',mac_addr:'02:00:00:00:00:01',ip_addr:'192.168.1.2'}]},lan:{status:'unavailable',rows:[]}},sample_time:Math.floor(now/1000),errors:{}});
+ w.fetch=async(url,options)=>{calls.push({url,method:options.method});if(fail)throw Error('offline');return {ok:!httpError,status:httpError?403:200,json:async()=>invalid?{}:url==='api/webui_wifi_modules'?{scan_scope:'wifi_modules',files:[{path:'/js/wifi/basic.js',sha256:'b'.repeat(64),wifi_literal_modules:['wifi/advance'],parameter_references:['wifi_chip1_channel']}],issues:[],write_verified:false}:url==='api/webui_evidence'?{files:[{path:'/index.html',sha256:'a'.repeat(64),command_references:[]}],issues:[],write_verified:false}:url==='api/preview_reservations'?{status:'empty_or_unsupported',rows:[]}:snap()};};
  w.XMLHttpRequest=function(){throw Error('XHR forbidden')};w.WebSocket=function(){throw Error('WS forbidden')};
  w.eval(['network-insights.js','wifi-draft.js','preview.js'].map(f=>fs.readFileSync(path.join(base,f),'utf8')).join('\n'));
  return {w,d,calls,close:()=>w.close(),fail:()=>{fail=true},deny:()=>{httpError=true},invalid:()=>{invalid=true},rename:()=>{name='Changed home'},expire:()=>{now+=301000},click:s=>d.querySelector(s).click(),submit:()=>d.querySelector('#editForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})),flush:()=>new Promise(r=>setTimeout(r,0))};
@@ -36,6 +36,16 @@ test('device search, source failures, comparisons and reservation uncertainty',a
 test('local device names persist only in browser with no network write',async()=>{const u=setup();try{await u.flush();u.click('[data-page="devices"]');u.click('#editNames');const input=u.d.querySelector('[data-alias]');input.value='Moj telefon';input.dispatchEvent(new u.w.Event('change',{bubbles:true}));assert.match(u.w.localStorage.getItem('zte-manager-device-names-v1'),/Moj telefon/);assert.equal(u.calls.length,1);assert.match(u.d.querySelector('#deviceTable').textContent,/Moj telefon/);}finally{u.close()}});
 
 test('web UI evidence scan is explicit, GET-only and makes no support claim',async()=>{const u=setup();try{await u.flush();assert.equal(u.calls.length,1);u.click('[data-page="system"]');u.click('#inspectWebui');await u.flush();assert.match(u.d.querySelector('#content').textContent,/index.html/);assert.match(u.d.querySelector('#content').textContent,/Zapisivanje i dalje nije potvrđeno/);assert.deepEqual(u.calls.at(-1),{url:'api/webui_evidence',method:'GET'});}finally{u.close()}});
+
+test('focused Wi-Fi module scan only performs allowlisted GET and shows static references',async()=>{
+ const u=setup();try{
+  await u.flush();u.click('[data-page="system"]');u.click('#inspectWifiModules');await u.flush();
+  assert.match(u.d.querySelector('#content').textContent,/wifi\/advance/);
+  assert.match(u.d.querySelector('#content').textContent,/wifi_chip1_channel/);
+  assert.match(u.d.querySelector('#content').textContent,/Nije dokazano/);
+  assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'},{url:'api/webui_wifi_modules',method:'GET'}]);
+ }finally{u.close()}
+});
 
 test('iPhone-safe Wi-Fi summary copies only redacted local data without router requests',async()=>{
  const u=setup();try{

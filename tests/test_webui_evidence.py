@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from urllib.error import HTTPError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'zte_manager/src'))
-from webui_evidence import inspect, safe_url, MAX_FILE_BYTES, module_references, literal_config
+from webui_evidence import inspect, inspect_wifi_modules, safe_url, MAX_FILE_BYTES, module_references, literal_config
 BASE='http://192.168.1.1'
 class Response(io.BytesIO):
  def __init__(self,url,body):super().__init__(body);self.url=url;self.headers={}
@@ -69,3 +69,31 @@ class EvidenceTests(unittest.TestCase):
   o=Opener({BASE+'/js/service.js':b'SECRET unexpected source SET_WIFI_INFO'})
   result=wifi_source(c,o)
   self.assertEqual(result['status'],'asset_mismatch');self.assertEqual(result['excerpts'],[])
+
+ def test_wifi_module_scan_only_reads_fixed_static_paths_and_literal_wifi_modules(self):
+  o=Opener({
+   BASE+'/js/config/menu.js':b'const menu={wifi:"wifi/basic",wireless:"wifi/advance",unsafe:"../goform/SET_WIFI_INFO"};',
+   BASE+'/js/router.js':b'define(["service", "wifi/security", "other"],fn);',
+   BASE+'/js/config/config.js':b'paths: {wifi: "wifi"};',
+   BASE+'/js/wifi/basic.js':b'var channel="Channel";',
+   BASE+'/js/wifi/advance.js':b'var width="wifi_11n_cap";',
+   BASE+'/js/wifi/security.js':b'var secret="DO_NOT_ECHO";'
+  })
+  r=inspect_wifi_modules(SimpleNamespace(base=BASE),opener=o)
+  self.assertEqual(r['scan_scope'],'wifi_modules')
+  self.assertEqual([f['path'] for f in r['files']],
+                   ['/js/config/menu.js','/js/router.js','/js/config/config.js',
+                    '/js/wifi/basic.js','/js/wifi/advance.js','/js/wifi/security.js'])
+  self.assertEqual(r['files'][0]['wifi_literal_modules'],['wifi/basic','wifi/advance'])
+  self.assertNotIn('DO_NOT_ECHO',str(r))
+  self.assertFalse(r['write_verified'])
+  self.assertTrue(all(req.get_method()=='GET' and '/goform' not in req.full_url
+                      for req in o.requests))
+
+ def test_wifi_module_scan_cannot_leave_router_on_redirect(self):
+  o=Opener({BASE+'/js/config/menu.js':HTTPError(BASE+'/js/config/menu.js',302,'redirect',
+                  {'Location':'https://evil.test/menu.js'},None),
+            BASE+'/js/router.js':b'', BASE+'/js/config/config.js':b''})
+  r=inspect_wifi_modules(SimpleNamespace(base=BASE),opener=o)
+  self.assertIn('redirect_blocked',r['issues'])
+  self.assertEqual(len(o.requests),3)
