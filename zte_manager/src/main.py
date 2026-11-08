@@ -1,4 +1,4 @@
-"""ZTE Manager v0.6.7: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.6.8: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -19,7 +19,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.6.7"
+VERSION = "0.6.8"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))

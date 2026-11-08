@@ -1,3 +1,9 @@
+## 0.6.8
+
+- Add an evidence-based read-only guest Wi-Fi detail section and expose additional non-secret guest/status keys from the stock A1 B08 getter, on explicit preview refresh only.
+- Record the stock getter mapping between main/guest SSIDs and the two chips in a non-sendable catalogue; command-to-network write mapping remains unverified.
+- Include these guest fields in privacy-safe presence-only compatibility exports; never export their values. All router writes, DHCP/DNS, live settings and app write gates remain unchanged.
+
 ## 0.6.7
 
 - Add a privacy-safe Wi-Fi read compatibility report on the mobile-friendly read-only preview: copy text (with manual iOS fallback) or download JSON.
