@@ -60,6 +60,8 @@ WIFI_DETAIL_PROBES = {
 }
 
 WIFI_CLIENT_METRICS = ("rssi", "signal", "signal_strength", "rx_rate", "tx_rate")
+STOCK_B08_RADIO_FIELDS = ("ChipIndex", "WirelessMode", "CountryCode", "Channel",
+                          "rate", "Band", "BandWidth", "HT_MCS", "ApMaxStationNumber")
 
 
 class RouterClient:
@@ -164,6 +166,48 @@ class RouterClient:
                              for keys in WIFI_DETAIL_PROBES.values() for key in keys},
             "errors": errors,
         }
+
+    def wifi_original_radio_read(self):
+        """On-demand, sanitized GETs documented by pinned original B08 getters.
+
+        Do not call queryAccessPointInfo here: its ResponseList can include
+        passwords. Never return raw responses from either of these two queries.
+        """
+        groups, errors = self.query_groups(["device"])
+        if errors or groups.get("device", {}).get("cr_version") != "CR_A1HRMF297DV1.0.0B08":
+            return {"status": "firmware_mismatch", "radio_status": "not_queried",
+                    "switch_status": "not_queried", "radios": [], "module": {}, "write_available": False}
+        radios, module = [], {}
+        try:
+            raw = self.get(["queryWiFiChipAdvancedInfo"])
+            response = raw.get("ResponseList") if isinstance(raw, dict) else None
+            if isinstance(response, str):
+                response = json.loads(response)
+            if not isinstance(response, list) or len(response) > 4 or any(not isinstance(item, dict) for item in response):
+                radio_status = "unsupported_or_invalid_shape"
+            else:
+                for pos, item in enumerate(response):
+                    safe = {key: value for key in STOCK_B08_RADIO_FIELDS
+                            if (isinstance((value := item.get(key)), (str, int, float))
+                                and not isinstance(value, bool) and value != ""
+                                and len(str(value)) <= 24)}
+                    radios.append({"position":pos, "fields":safe})
+                radio_status = "observed" if any(row["fields"] for row in radios) else "empty_or_unknown_fields"
+        except (RouterError, ValueError, TypeError):
+            radio_status = "read_unavailable"
+        try:
+            raw = self.get(["queryWiFiModuleSwitch"])
+            value = raw.get("WiFiModuleSwitch") if isinstance(raw, dict) else None
+            if isinstance(value, (str, int)) and not isinstance(value, bool) and value != "" and len(str(value)) <= 24:
+                module = {"WiFiModuleSwitch":value}
+                switch_status = "observed_raw_code"
+            else:
+                switch_status = "unsupported_or_missing"
+        except RouterError:
+            switch_status = "read_unavailable"
+        return {"status":"read_only", "radio_status":radio_status,
+                "switch_status":switch_status, "radios":radios, "module":module,
+                "write_available":False}
 
     def clients(self, strict=False):
         # IMPORTANT: MF297D / A1 B08: v0.1 queried station_list *alone*.

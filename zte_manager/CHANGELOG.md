@@ -1,3 +1,9 @@
+## 0.7.8
+
+- Introduce explicit, one-shot read-only probes of the two original B08 GET commands `queryWiFiChipAdvancedInfo` and `queryWiFiModuleSwitch` after exact firmware validation.
+- Expose only a tiny allowlist of non-secret scalar radio attributes and the un-interpreted Wi-Fi module code. Raw payloads, SSIDs and passwords are never returned. Malformed or unsupported responses remain unknown.
+- Do not probe `queryAccessPointInfo` (it may contain passwords), change any router settings, or alter write gates. Existing ordinary status/preview reads are unchanged.
+
 ## 0.7.7
 
 - Resolve literal minified getter exports (`getFoo:xy` → `function xy(...)`) rather than expecting only `getFoo:function(...)` in stock `service.js`.
