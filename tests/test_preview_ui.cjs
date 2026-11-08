@@ -20,4 +20,28 @@ test('local device names persist only in browser with no network write',async()=
 
 test('web UI evidence scan is explicit, GET-only and makes no support claim',async()=>{const u=setup();try{await u.flush();assert.equal(u.calls.length,1);u.click('[data-page="system"]');u.click('#inspectWebui');await u.flush();assert.match(u.d.querySelector('#content').textContent,/index.html/);assert.match(u.d.querySelector('#content').textContent,/Zapisivanje i dalje nije potvrđeno/);assert.deepEqual(u.calls.at(-1),{url:'api/webui_evidence',method:'GET'});}finally{u.close()}});
 
+test('iPhone-safe Wi-Fi summary copies only redacted local data without router requests',async()=>{
+ const u=setup();try{
+  await u.flush();const copied=[];
+  Object.defineProperty(u.w.navigator,'clipboard',{value:{writeText:async value=>{copied.push(value)}}});
+  u.click('[data-page="wifi"]');u.click('#copyWifiReport');await u.flush();
+  assert.equal(copied.length,1);
+  assert.equal(JSON.parse(copied[0]).kind,'wifi_read_compatibility');
+  for(const value of ['Actual home','192.168.1.2','02:00:00:00:00:01'])assert.ok(!copied[0].includes(value));
+  assert.match(u.d.querySelector('#notice').textContent,/kopiran/);
+  assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'}]);
+ }finally{u.close()}
+});
+
+test('Wi-Fi summary supports manual selection when iOS clipboard is unavailable',async()=>{
+ const u=setup();try{
+  await u.flush();u.click('[data-page="wifi"]');u.click('#copyWifiReport');await u.flush();
+  const textarea=u.d.querySelector('#wifiReportText');
+  assert.equal(textarea.hidden,false);
+  assert.equal(JSON.parse(textarea.value).values_included,false);
+  assert.match(u.d.querySelector('#notice').textContent,/ručno kopirati/);
+  assert.equal(u.calls.length,1);
+ }finally{u.close()}
+});
+
 for(const fault of ['deny','invalid'])test(`refresh ${fault} blocks old draft submission`,async()=>{const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('[data-edit="1:1"]');u.d.querySelector('[name="ssid"]').value='Offline test';u[fault]();u.click('#refresh');await u.flush();u.submit();assert.match(u.d.querySelector('#formError').textContent,/Ponovno/);assert.equal(u.d.querySelector('[data-edit="1:1"]').disabled,true);assert.ok(u.calls.every(c=>c.method==='GET'&&c.url==='api/preview_snapshot'));}finally{u.close()}});

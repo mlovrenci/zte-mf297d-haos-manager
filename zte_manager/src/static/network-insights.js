@@ -45,7 +45,23 @@ const NetworkInsights = (() => {
    sources:Object.fromEntries(['wifi','lan'].map(k=>[k,{status:snapshot.sources?.[k]?.status==='ok'?'ok':'unavailable',count:snapshot.sources?.[k]?.status==='ok'?devices(snapshot).filter(r=>r.source===k).length:null}])),
    warnings:[...new Set(warnings(snapshot).map(w=>w.code))]};
  }
+ function wifiCompatibility(snapshot){
+  // Export only fixed field *names* and presence flags. Never export returned
+  // values, SSIDs, credentials, addresses, hostnames or raw error strings.
+  const groups=snapshot?.groups||{},sources=[groups.wifi||{},groups.wifi_extra||{},snapshot?.fields||{}];
+  const present=key=>sources.some(source=>Object.prototype.hasOwnProperty.call(source,key)&&source[key]!==null&&source[key]!==undefined&&source[key]!=='');
+  const presence=keys=>Object.fromEntries(keys.map(key=>[key,present(key)?'returned':'not_returned']));
+  const networks=Object.fromEntries([1,2].flatMap(chip=>[1,2].map(ssid=>{
+   const prefix=`wifi_chip${chip}_ssid${ssid}_`;
+   return [`radio${chip}_ssid${ssid}`,presence([prefix+'ssid',prefix+'switch_onoff',prefix+'auth_mode'])];
+  })));
+  return {schema:1,kind:'wifi_read_compatibility',firmware_matches_b08:groups.device?.cr_version==='CR_A1HRMF297DV1.0.0B08',
+   wifi_group_read_failed:!!snapshot?.errors?.wifi,wifi_extra_group_read_failed:!!snapshot?.errors?.wifi_extra,
+   advanced_read_failed:!!snapshot?.errors?.b08_advanced||!!snapshot?.errors?.b08_advanced_secondary,
+   networks,advanced:presence(['WirelessMode','m_WirelessMode','CountryCode','m_CountryCode','Channel','m_Channel','HT_MCS','wifi_band','m_wifi_band','wifi_11n_cap','m_wifi_11n_cap','m_band_enable','wifi_lbd_enable','wifi_dfs_status','wifi_eacs_enable','wifi_enable','wifi_5g_enable']),
+   values_included:false,write_verified:false};
+ }
  const signal=s=>({time:s.sample_time,rsrp:number(s.groups?.signal?.lte_rsrp),sinr:number(s.groups?.signal?.Z_SINR)});
- return {devices,select,warnings,changes,diagnostic,signal};
+ return {devices,select,warnings,changes,diagnostic,wifiCompatibility,signal};
 })();
 if(typeof module!=='undefined')module.exports=NetworkInsights;

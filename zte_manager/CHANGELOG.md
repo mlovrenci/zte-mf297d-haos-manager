@@ -1,3 +1,9 @@
+## 0.6.7
+
+- Add a privacy-safe Wi-Fi read compatibility report on the mobile-friendly read-only preview: copy text (with manual iOS fallback) or download JSON.
+- Export only fixed field names and presence flags, B08 firmware match, read-failure booleans, and explicit non-write status; never export SSIDs, passwords, raw Wi-Fi values, MAC/IP addresses, or client names.
+- Fix malformed device source filter markup. All router controls and DHCP/DNS behaviour are unchanged.
+
 ## 0.6.6
 
 - Document reviewed SSID1/SSID2 parameter mappings and separate SET_WIFI_INFO builder variants in a non-sendable catalogue.
