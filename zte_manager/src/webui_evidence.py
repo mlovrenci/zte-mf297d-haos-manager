@@ -15,11 +15,13 @@ MAX_FILES = 12
 MAX_FILE_BYTES = 1048576
 MAX_TOTAL_BYTES = 2097152
 MAX_SECONDS = 15
-COMMANDS = ('SET_WIFI_INFO', 'SET_WIFI_SSID1_SETTINGS', 'SET_WIFI_SSID2_SETTINGS')
+COMMANDS = ('SET_WIFI_INFO', 'SET_WIFI_SSID1_SETTINGS', 'SET_WIFI_SSID2_SETTINGS',
+            'WIFI_ADVANCE_SET', 'SET_M_WIFI_INFO')
 PARAMETERS = ('ssid', 'wifiEnabled', 'm_ssid_enable', 'broadcastSsidEnabled',
               'MAX_Access_num', 'security_mode', 'cipher', 'NoForwarding',
               'passphrase', 'wifi_lbd_enable', 'wifi_chip1_channel',
               'wifi_chip2_channel', 'wifi_chip1_bandwidth', 'wifi_chip2_bandwidth')
+WIFI_CHANNEL_SEEDS = ('/js/wifi/wifi_channel.js', '/js/wifi/wifi_channel_5g.js')
 WIFI_MODULE_SEEDS = (
     '/js/config/menu.js', '/js/router.js', '/js/config/config.js',
     '/js/config/cpe/MF297D/config.js',
@@ -113,12 +115,14 @@ def literal_config(source):
     return {'base_url':base.group(1) if base else None, 'paths':dict(list(aliases.items())[:64])}
 
 
-def inspect(client, opener=None, clock=time.monotonic, *, wifi_focus=False):
+def inspect(client, opener=None, clock=time.monotonic, *, wifi_focus=False, roots=None):
     if opener is None:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
             urllib.request.HTTPCookieProcessor(client.cookies), NoRedirect())
     start = clock()
-    queue = ([client.base + path for path in WIFI_MODULE_SEEDS]
+    queue = ([client.base + path for path in roots]
+             if roots is not None else
+             [client.base + path for path in WIFI_MODULE_SEEDS]
              if wifi_focus else [client.base + '/'])
     module_base = client.base + ('/js/' if wifi_focus else '/')
     aliases = {}
@@ -206,7 +210,8 @@ def inspect(client, opener=None, clock=time.monotonic, *, wifi_focus=False):
         issues.append('scan_incomplete')
     return {'status':'references_only' if files else 'unavailable', 'files':files,
             'attempts':attempts, 'issues':sorted(set(issues)), 'write_verified':False,
-            'scan_scope':'wifi_modules' if wifi_focus else 'entry_assets',
+            'scan_scope':'channel_modules' if roots == WIFI_CHANNEL_SEEDS else
+                         'wifi_modules' if wifi_focus else 'entry_assets',
             'limits':{'files':MAX_FILES,'file_bytes':MAX_FILE_BYTES,'seconds':MAX_SECONDS},
             'note':'Static references are not parameter mappings or proof of B08 write support. Dynamic modules may be absent.'}
 
@@ -216,11 +221,22 @@ def inspect_wifi_modules(client, opener=None, clock=time.monotonic):
     return inspect(client, opener=opener, clock=clock, wifi_focus=True)
 
 
+def inspect_wifi_channels(client, opener=None, clock=time.monotonic):
+    """Inspect two fixed original channel UI modules with bounded GETs only."""
+    return inspect(client, opener=opener, clock=clock, wifi_focus=True, roots=WIFI_CHANNEL_SEEDS)
+
+
 SERVICE_SHA256 = '8d5588e3b912827bc09a6380a84f4bef2815b56ce0ad487fdc63c5148c13aaa8'
 WIFI_UI_PINNED = {
     '/js/config/menu.js': 'f0802e32266558b16f49ec7c517cbb3248d65f8d2b019dea9b2245bb642ea68c',
     '/js/router.js': 'a5a878ca911a2a5d65160a3a9cf98938e6a9faaba7f50cd25a5e57a2a9daa377',
     '/js/config/config.js': '5bcda613d55ad9d2da687ffe022712d5419856061dcdcd51c6b654f307d99154',
+}
+WIFI_FEATURE_PINNED = {
+    '/js/wifi/wifi_basic.js': '0fa49233a6d9698dc182190d16db78160ab83a2051cf7ea3cbafa0d617cd0bd6',
+    '/js/wifi/wifi_main.js': '0dbcd85d76dd46bed9f511388f4fe2ab585904a375b2c619f63994d84365e1e9',
+    '/js/wifi/wifi_guest.js': 'bab1b2a98bb41beb3c5337917b2abbe0fa9fbd800d9cf20134599db1d552f593',
+    '/js/wifi/wifi_advance.js': '235d0f1c70d6aec2195df8102f8aec721a05bba669e2de63d2b4b4983dc05c73',
 }
 
 
@@ -231,6 +247,15 @@ def wifi_ui_source(client, opener=None):
     Original static scripts are served verbatim only when exact known hashes
     and firmware match; no user-supplied path or dynamic router data is read.
     """
+    return _pinned_source(client, WIFI_UI_PINNED, opener)
+
+
+def wifi_feature_source(client, opener=None):
+    """Review four exactly pinned stock B08 Wi-Fi callers, never runtime data."""
+    return _pinned_source(client, WIFI_FEATURE_PINNED, opener)
+
+
+def _pinned_source(client, pinned, opener):
     groups, errors = client.query_groups(['device'])
     if errors or groups.get('device', {}).get('cr_version') != 'CR_A1HRMF297DV1.0.0B08':
         return {'status': 'firmware_mismatch', 'files': [], 'write_verified': False}
@@ -239,7 +264,7 @@ def wifi_ui_source(client, opener=None):
             urllib.request.HTTPCookieProcessor(client.cookies), NoRedirect())
     files = []
     try:
-        for path, expected_sha in WIFI_UI_PINNED.items():
+        for path, expected_sha in pinned.items():
             url = client.base + path
             req = urllib.request.Request(url, method='GET', headers={'Accept-Encoding': 'identity'})
             with opener.open(req, timeout=3) as response:

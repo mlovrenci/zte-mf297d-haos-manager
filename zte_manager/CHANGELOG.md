@@ -1,3 +1,9 @@
+## 0.7.4
+
+- Add two explicit, fixed-path B08 channel-module GET-only diagnostics (`wifi_channel.js`, `wifi_channel_5g.js`) independent of the 12-file generic scan limit.
+- Add a firmware/hash-pinned source-only diagnostic for the four original B08 Wi-Fi callers (`wifi_basic`, `wifi_main`, `wifi_guest`, `wifi_advance`). The four observed hashes must all match before any source is returned; no raw runtime data, credentials or configurable file paths.
+- Recognize `WIFI_ADVANCE_SET` and `SET_M_WIFI_INFO` as reference names in static inventory only, with no associated write request. All router settings and write guards unchanged.
+
 ## 0.7.3
 
 - Following the observed stock `DEVICE="cpe/MF297D"` and live read-only `opms_wan_mode="PPP"`, the explicit GET-only Wi-Fi scanner now starts at the exact device-specific configuration and `menu_4ggateway` route table as well as the original entry points.

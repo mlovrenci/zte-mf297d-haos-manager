@@ -7,7 +7,10 @@ from types import SimpleNamespace
 from urllib.error import HTTPError
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'zte_manager/src'))
-from webui_evidence import inspect, inspect_wifi_modules, wifi_ui_source, WIFI_UI_PINNED, safe_url, MAX_FILE_BYTES, module_references, literal_config
+from webui_evidence import (inspect, inspect_wifi_modules, inspect_wifi_channels,
+                            wifi_ui_source, wifi_feature_source, WIFI_UI_PINNED,
+                            WIFI_FEATURE_PINNED, safe_url, MAX_FILE_BYTES,
+                            module_references, literal_config)
 BASE='http://192.168.1.1'
 class Response(io.BytesIO):
  def __init__(self,url,body):super().__init__(body);self.url=url;self.headers={}
@@ -131,3 +134,28 @@ class EvidenceTests(unittest.TestCase):
    r=wifi_ui_source(c,o)
   self.assertEqual(r['status'],'asset_mismatch')
   self.assertEqual(r['files'],[])
+
+ def test_two_fixed_wifi_channel_modules_are_get_only(self):
+  o=Opener({BASE+'/js/wifi/wifi_channel.js':b'define([],function(){var Channel=1;});',
+            BASE+'/js/wifi/wifi_channel_5g.js':b'define([],function(){var m_Channel=6;});'})
+  result=inspect_wifi_channels(SimpleNamespace(base=BASE),opener=o)
+  self.assertEqual(result['scan_scope'],'channel_modules')
+  self.assertEqual([r['path'] for r in result['files']],
+                   ['/js/wifi/wifi_channel.js','/js/wifi/wifi_channel_5g.js'])
+  self.assertFalse(result['write_verified'])
+  self.assertTrue(all(q.get_method()=='GET' and '/goform' not in q.full_url for q in o.requests))
+
+ def test_pinned_feature_source_fails_closed_on_one_changed_caller(self):
+  c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{}))
+  source=b'define(["service"],function(){});'
+  path='/js/wifi/wifi_basic.js'
+  o=Opener({BASE+path:source})
+  with patch.dict(WIFI_FEATURE_PINNED,{path:hashlib.sha256(source).hexdigest()},clear=True):
+   result=wifi_feature_source(c,o)
+  self.assertEqual(result['status'],'pinned_static_source_only')
+  self.assertEqual(result['files'][0]['source'],source.decode())
+  o=Opener({BASE+path:b'changed'})
+  with patch.dict(WIFI_FEATURE_PINNED,{path:hashlib.sha256(source).hexdigest()},clear=True):
+   result=wifi_feature_source(c,o)
+  self.assertEqual(result['status'],'asset_mismatch')
+  self.assertEqual(result['files'],[])
