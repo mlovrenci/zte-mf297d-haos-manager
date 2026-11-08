@@ -1,11 +1,13 @@
 import io
+import hashlib
 from pathlib import Path
 import sys
 import unittest
 from types import SimpleNamespace
 from urllib.error import HTTPError
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'zte_manager/src'))
-from webui_evidence import inspect, inspect_wifi_modules, safe_url, MAX_FILE_BYTES, module_references, literal_config
+from webui_evidence import inspect, inspect_wifi_modules, wifi_ui_source, WIFI_UI_PINNED, safe_url, MAX_FILE_BYTES, module_references, literal_config
 BASE='http://192.168.1.1'
 class Response(io.BytesIO):
  def __init__(self,url,body):super().__init__(body);self.url=url;self.headers={}
@@ -97,3 +99,27 @@ class EvidenceTests(unittest.TestCase):
   r=inspect_wifi_modules(SimpleNamespace(base=BASE),opener=o)
   self.assertIn('redirect_blocked',r['issues'])
   self.assertEqual(len(o.requests),3)
+
+ def test_pinned_wifi_ui_source_requires_exact_firmware_and_both_asset_hashes(self):
+  c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'wrong'}},{}))
+  o=Opener({})
+  self.assertEqual(wifi_ui_source(c,o)['status'],'firmware_mismatch')
+  self.assertFalse(o.requests)
+  c.query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{})
+  menu=b'define(["service"],fn);';router=b'define(["config/menu"],fn);'
+  o=Opener({BASE+'/js/config/menu.js':menu,BASE+'/js/router.js':router})
+  with patch.dict(WIFI_UI_PINNED,{'/js/config/menu.js':hashlib.sha256(menu).hexdigest(),
+                                   '/js/router.js':hashlib.sha256(router).hexdigest()}):
+   r=wifi_ui_source(c,o)
+  self.assertEqual(r['status'],'pinned_static_source_only')
+  self.assertEqual([x['source'] for x in r['files']],[menu.decode(),router.decode()])
+  self.assertTrue(all(q.get_method()=='GET' and '/goform' not in q.full_url for q in o.requests))
+  self.assertFalse(r['write_verified'])
+
+ def test_pinned_wifi_ui_source_does_not_leak_partial_asset_on_changed_file(self):
+  c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{}))
+  o=Opener({BASE+'/js/config/menu.js':b'sensitive prototype text',BASE+'/js/router.js':b'unknown changed'})
+  with patch.dict(WIFI_UI_PINNED,{'/js/config/menu.js':hashlib.sha256(b'sensitive prototype text').hexdigest()}):
+   r=wifi_ui_source(c,o)
+  self.assertEqual(r['status'],'asset_mismatch')
+  self.assertEqual(r['files'],[])
