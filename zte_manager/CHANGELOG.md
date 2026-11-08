@@ -1,3 +1,8 @@
+## 0.7.7
+
+- Resolve literal minified getter exports (`getFoo:xy` → `function xy(...)`) rather than expecting only `getFoo:function(...)` in stock `service.js`.
+- Report bounded export/definition excerpts and whether each alias was resolved, preserving the v0.7.6 read-only and hash-pinned safety boundary.
+
 ## 0.7.6
 
 - Add manual GET-only, firmware- and hash-pinned excerpts for five original B08 service getter definitions, including access-point information, module switch status and advanced radio settings.

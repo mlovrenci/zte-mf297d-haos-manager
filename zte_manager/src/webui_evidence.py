@@ -368,13 +368,27 @@ def wifi_getter_source(client, opener=None):
         source = body.decode('utf-8')
         excerpts, missing = [], []
         for name, after in WIFI_GETTER_EXCERPT_LENGTHS.items():
-            definition = re.search(r'["\']?' + re.escape(name) + r'["\']?\s*:\s*function\b',source)
-            if definition is None:
+            # Stock B08 service.js is minified: public method names may be
+            # exported as `getFoo:te`, while the body is `function te(){...}`.
+            # Resolve such literal bindings as text, never execute or import.
+            anchor = re.search(r'\b' + re.escape(name) + r'\b', source)
+            if anchor is None:
                 missing.append(name)
                 continue
-            start = max(0, definition.start()-160)
-            end = min(len(source), definition.end()+after)
-            excerpts.append({'getter':name, 'offset':definition.start(),
+            binding = re.search(r'["\']?' + re.escape(name) +
+                                r'["\']?\s*:\s*([A-Za-z_$][\w$]*)\b',source)
+            direct = re.search(r'["\']?' + re.escape(name) +
+                               r'["\']?\s*:\s*function\b',source)
+            target = binding.group(1) if binding and binding.group(1) != 'function' else None
+            definition = (re.search(r'\bfunction\s+' + re.escape(target) + r'\s*\(',source)
+                          if target else direct)
+            start = max(0, (definition or anchor).start()-120)
+            end = min(len(source), (definition or anchor).end()+after)
+            mapping_start = max(0, anchor.start()-250)
+            mapping_end = min(len(source), anchor.end()+400)
+            excerpts.append({'getter':name,'offset':(definition or anchor).start(),
+                             'binding':target,'definition_found':definition is not None,
+                             'mapping_source':source[mapping_start:mapping_end],
                              'source':source[start:end]})
         return {'status':'pinned_static_getters_only', 'sha256':digest,
                 'path':'/js/service.js', 'excerpts':excerpts,
