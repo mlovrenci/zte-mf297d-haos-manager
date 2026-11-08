@@ -1,3 +1,8 @@
+## 0.7.6
+
+- Add manual GET-only, firmware- and hash-pinned excerpts for five original B08 service getter definitions, including access-point information, module switch status and advanced radio settings.
+- Cap returned source snippets to stay within HA App proxy limits. Missing getters are reported explicitly; changed firmware/asset yields no source. No Goform calls, runnable setter payloads or altered write gates.
+
 ## 0.7.5
 
 - Fix Home Assistant's 50 KiB app proxy response limit: the stock Wi-Fi source review now returns one hash-pinned module per request, selected only from a six-name fixed allowlist (`basic`, `main`, `guest`, `advance`, `channel`, `channel_5g`). Invalid names fail before accessing the router.

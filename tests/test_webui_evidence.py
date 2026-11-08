@@ -8,7 +8,8 @@ from urllib.error import HTTPError
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'zte_manager/src'))
 from webui_evidence import (inspect, inspect_wifi_modules, inspect_wifi_channels,
-                            wifi_ui_source, wifi_feature_source, WIFI_UI_PINNED,
+                            wifi_ui_source, wifi_feature_source, wifi_getter_source,
+                            WIFI_UI_PINNED,
                             WIFI_FEATURE_PINNED, safe_url, MAX_FILE_BYTES,
                             module_references, literal_config)
 BASE='http://192.168.1.1'
@@ -162,3 +163,24 @@ class EvidenceTests(unittest.TestCase):
   o=Opener({})
   self.assertEqual(wifi_feature_source(c,'../service',o)['status'],'unsupported_module')
   self.assertFalse(o.requests)
+ def test_pinned_service_getter_excerpts_are_bounded_and_get_only(self):
+  c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{}))
+  js=b'var api={getWifiAccessPointInfo:function(){return {nv:"wifi_chip1_channel"}},getWifiModuleSwitchStatus:function(){return {nv:"wifi_enabled"}}};'
+  o=Opener({BASE+'/js/service.js':js})
+  with patch('webui_evidence.SERVICE_SHA256',hashlib.sha256(js).hexdigest()):
+   result=wifi_getter_source(c,o)
+  self.assertEqual(result['status'],'pinned_static_getters_only')
+  self.assertEqual([e['getter'] for e in result['excerpts']],['getWifiAccessPointInfo','getWifiModuleSwitchStatus'])
+  self.assertIn('getDfsEaseSetting',result['missing'])
+  self.assertTrue(all(q.get_method()=='GET' and q.full_url.endswith('/js/service.js') for q in o.requests))
+  self.assertFalse(result['write_verified'])
+ def test_service_getter_excerpts_fail_closed_on_changed_asset_and_firmware(self):
+  c=SimpleNamespace(base=BASE,query_groups=lambda _:({'device':{'cr_version':'wrong'}},{}))
+  o=Opener({})
+  self.assertEqual(wifi_getter_source(c,o)['status'],'firmware_mismatch')
+  self.assertFalse(o.requests)
+  c.query_groups=lambda _:({'device':{'cr_version':'CR_A1HRMF297DV1.0.0B08'}},{})
+  o=Opener({BASE+'/js/service.js':b'getWifiAccessPointInfo:function(){return "UNKNOWN"}'})
+  result=wifi_getter_source(c,o)
+  self.assertEqual(result['status'],'asset_mismatch')
+  self.assertEqual(result['excerpts'],[])

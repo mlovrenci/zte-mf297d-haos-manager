@@ -1,4 +1,4 @@
-"""ZTE Manager v0.7.5: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.7.6: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -12,7 +12,7 @@ from time import monotonic, time
 from zte_api import RouterClient, RouterError
 from wifi_contracts import catalogue as wifi_contract_catalogue
 from webui_evidence import (inspect as inspect_webui, inspect_wifi_modules,
-                            inspect_wifi_channels, wifi_source, wifi_ui_source,
+                            inspect_wifi_channels, wifi_source, wifi_getter_source, wifi_ui_source,
                             wifi_feature_source, WIFI_FEATURE_NAMES)
 from preview_data import collect as collect_preview, reservations as preview_reservations
 from mqtt_probe import publish_probe, publish_dns_probe, MQTTProbeError
@@ -21,7 +21,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.7.5"
+VERSION = "0.7.6"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -524,6 +524,10 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/wifi_source_evidence":
                 with ROUTER_LOCK:
                     result = wifi_source(connect(o))
+                return self.response(200, result)
+            if path == "/api/wifi_getter_source_evidence":
+                with ROUTER_LOCK:
+                    result = wifi_getter_source(connect(o))
                 return self.response(200, result)
             if path == "/api/webui_evidence":
                 with ROUTER_LOCK:
