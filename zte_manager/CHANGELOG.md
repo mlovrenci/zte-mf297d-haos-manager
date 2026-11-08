@@ -1,3 +1,8 @@
+## 0.7.9
+
+- Add an on-demand "Izvorni B08 radio podaci" card in the new mobile-friendly Wi-Fi preview. Distinguish 2.4/5 GHz chip indices proven by original callers; show only selected raw channels/width/mode/region and the radio-module code.
+- Nothing is fetched until the user presses its GET-only button; no settings editor or write request is generated. Unrecognized fields are never rendered and radio data is cleared when refreshing the general snapshot.
+
 ## 0.7.8
 
 - Introduce explicit, one-shot read-only probes of the two original B08 GET commands `queryWiFiChipAdvancedInfo` and `queryWiFiModuleSwitch` after exact firmware validation.
