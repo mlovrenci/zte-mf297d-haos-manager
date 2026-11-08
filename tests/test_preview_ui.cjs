@@ -7,7 +7,7 @@ function setup(){
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
  let fail=false,httpError=false,invalid=false,name='Actual home',now=Date.now();w.Date.now=()=>now;
  const snap=()=>({version:'0.7.0',groups:{device:{cr_version:'CR_A1HRMF297DV1.0.0B08'},wifi:{wifi_chip1_ssid1_ssid:name,guest_switch:'0'},wifi_extra:{wifi_chip1_ssid2_ssid:'Guest private',wifi_chip1_ssid2_switch_onoff:'1'},signal:{lte_rsrp:'-90',Z_SINR:'0'}},fields:{wifi_chip1_ssid2_max_access_num:'8',m_HideSSID:'0'},clients:[],sources:{wifi:{status:'ok',rows:[{hostname:'Phone',mac_addr:'02:00:00:00:00:01',ip_addr:'192.168.1.2'}]},lan:{status:'unavailable',rows:[]}},sample_time:Math.floor(now/1000),errors:{}});
- w.fetch=async(url,options)=>{calls.push({url,method:options.method});if(fail)throw Error('offline');return {ok:!httpError,status:httpError?403:200,json:async()=>invalid?{}:url==='api/webui_wifi_modules'?{scan_scope:'wifi_modules',files:[{path:'/js/wifi/basic.js',sha256:'b'.repeat(64),wifi_literal_modules:['wifi/advance'],parameter_references:['wifi_chip1_channel']}],issues:[],write_verified:false}:url==='api/webui_evidence'?{files:[{path:'/index.html',sha256:'a'.repeat(64),command_references:[]}],issues:[],write_verified:false}:url==='api/preview_reservations'?{status:'empty_or_unsupported',rows:[]}:snap()};};
+ w.fetch=async(url,options)=>{calls.push({url,method:options.method});if(fail)throw Error('offline');return {ok:!httpError,status:httpError?403:200,json:async()=>invalid?{}:url==='api/wifi_original_radio_read'?{status:'read_only',radio_status:'observed',switch_status:'observed_raw_code',radios:[{position:0,fields:{ChipIndex:'0',Channel:'11',BandWidth:'0',WirelessMode:'4',CountryCode:'HR',SSID:'HIDDEN_SECRET'}},{position:1,fields:{ChipIndex:'1',Channel:'0',BandWidth:'6',WirelessMode:'8',CountryCode:'HR'}}],module:{WiFiModuleSwitch:'1'},write_available:false}:url==='api/webui_wifi_modules'?{scan_scope:'wifi_modules',files:[{path:'/js/wifi/basic.js',sha256:'b'.repeat(64),wifi_literal_modules:['wifi/advance'],parameter_references:['wifi_chip1_channel']}],issues:[],write_verified:false}:url==='api/webui_evidence'?{files:[{path:'/index.html',sha256:'a'.repeat(64),command_references:[]}],issues:[],write_verified:false}:url==='api/preview_reservations'?{status:'empty_or_unsupported',rows:[]}:snap()};};
  w.XMLHttpRequest=function(){throw Error('XHR forbidden')};w.WebSocket=function(){throw Error('WS forbidden')};
  w.eval(['network-insights.js','wifi-draft.js','preview.js'].map(f=>fs.readFileSync(path.join(base,f),'utf8')).join('\n'));
  return {w,d,calls,close:()=>w.close(),fail:()=>{fail=true},deny:()=>{httpError=true},invalid:()=>{invalid=true},rename:()=>{name='Changed home'},expire:()=>{now+=301000},click:s=>d.querySelector(s).click(),submit:()=>d.querySelector('#editForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})),flush:()=>new Promise(r=>setTimeout(r,0))};
@@ -18,6 +18,17 @@ test('evidence-backed guest panel shows raw flags without an extra router reques
   assert.match(output,/Gostujuće mreže/);assert.match(output,/Guest private/);
   assert.match(output,/Globalni gostujući prekidač/);assert.match(output,/Radio 1 · gost maksimalno klijenata/);
   assert.match(output,/nisu ekvivalentni/);assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'}]);
+ }finally{u.close()}
+});
+test('original B08 radio read only runs on click and renders safe exact radio codes',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="wifi"]');
+  assert.equal(u.calls.length,1);assert.match(u.d.querySelector('#content').textContent,/Izvorni B08 radio podaci/);
+  u.click('#readOriginalRadio');await u.flush();
+  assert.deepEqual(u.calls.at(-1),{url:'api/wifi_original_radio_read',method:'GET'});
+  const output=u.d.querySelector('#content').textContent;
+  assert.match(output,/2,4 GHz · radio 0/);assert.match(output,/5 GHz · radio 1/);
+  assert.match(output,/Wi-Fi modul \(izvorni kod\)/);assert.match(output,/Širina \(izvorni kod\)/);
+  assert.ok(!output.includes('HIDDEN_SECRET'));
  }finally{u.close()}
 });
 test('local SSID on/off draft never issues a router write',async()=>{

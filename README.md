@@ -106,6 +106,8 @@ Since v0.7.7, this reader additionally resolves literal minified export aliases 
 
 `GET /api/wifi_original_radio_read` (v0.7.8) is a manual, one-shot and B08-checked read-only probe using just the newly identified stock commands `queryWiFiChipAdvancedInfo` and `queryWiFiModuleSwitch`. It returns only whitelisted, short scalar radio fields (including raw `ChipIndex`, `Channel` and `BandWidth`) and the uninterpreted module switch code. It never returns the raw response or calls `queryAccessPointInfo`, which can contain SSID credentials; routine refresh paths are unchanged. Empty or invalid data is explicitly unknown rather than mapped to a 2.4/5 GHz setting by guesswork.
 
+In v0.7.9 the new Wi-Fi preview adds a manual "Izvorni B08 radio podaci" read card, showing safe original per-radio codes only after pressing its button; the standard page load does not run the additional radio queries.
+
 ### Reviewed service contracts (v0.6.6)
 
 `GET /api/wifi_contracts` returns reviewed parameter-name mappings from the pinned B08 service functions, with no network call or executable plan. The pinned status getter maps chip1/chip2 `ssid1` to main and `ssid2` to guest; this **does not** identify which write command changes a guest SSID. `SET_WIFI_INFO` has two distinct builders; the power-off builder drops other caller fields. Password encoding remains conditional on the original config flag. The read-only Wi-Fi view additionally probes non-secret advanced keys seen in the stock getter: `Channel`, `wifi_11n_cap`, their `m_` counterparts, plus guest client limits and two raw global status fields from stock `gt`. These remain raw codes rather than assumed MHz/band mappings. The privacy-safe Wi-Fi export reports field presence only.
