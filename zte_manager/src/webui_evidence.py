@@ -227,6 +227,13 @@ def inspect_wifi_channels(client, opener=None, clock=time.monotonic):
 
 
 SERVICE_SHA256 = '8d5588e3b912827bc09a6380a84f4bef2815b56ce0ad487fdc63c5148c13aaa8'
+WIFI_GETTER_EXCERPT_LENGTHS = {
+    'getWifiAccessPointInfo': 6500,
+    'getWifiModuleSwitchStatus': 3500,
+    'getDfsEaseSetting': 1700,
+    'getWifiChipAdvanceInfo': 3000,
+    'getWifiWholeChipAdvanceInfo': 3000,
+}
 WIFI_UI_PINNED = {
     '/js/config/menu.js': 'f0802e32266558b16f49ec7c517cbb3248d65f8d2b019dea9b2245bb642ea68c',
     '/js/router.js': 'a5a878ca911a2a5d65160a3a9cf98938e6a9faaba7f50cd25a5e57a2a9daa377',
@@ -330,4 +337,47 @@ def wifi_source(client, opener=None):
         return {'status':'static_source_only','sha256':digest,'path':'/js/service.js',
                 'excerpts':excerpts,'write_verified':False}
     except (OSError, ValueError, urllib.error.URLError):
+        return {'status':'unavailable','excerpts':[], 'write_verified':False}
+
+
+def wifi_getter_source(client, opener=None):
+    """Expose only bounded stock B08 service getter *definitions* as static text.
+
+    This manually invoked diagnostic fetches one fixed JS asset with GET, and
+    returns nothing unless its firmware and SHA-256 both match known evidence.
+    It does not execute JS, call Goform or expose any runtime router values.
+    """
+    groups, errors = client.query_groups(['device'])
+    if errors or groups.get('device', {}).get('cr_version') != 'CR_A1HRMF297DV1.0.0B08':
+        return {'status':'firmware_mismatch','excerpts':[], 'write_verified':False}
+    if opener is None:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+            urllib.request.HTTPCookieProcessor(client.cookies), NoRedirect())
+    url = client.base + '/js/service.js'
+    try:
+        req = urllib.request.Request(url, method='GET',
+                                     headers={'Accept-Encoding':'identity'})
+        with opener.open(req, timeout=3) as response:
+            if (response.geturl() != url or
+                    response.headers.get('Content-Encoding', 'identity').lower() not in ('', 'identity')):
+                raise ValueError('Unexpected asset response')
+            body = response.read(262145)
+        digest = hashlib.sha256(body).hexdigest()
+        if len(body) > 262144 or digest != SERVICE_SHA256:
+            return {'status':'asset_mismatch','excerpts':[], 'write_verified':False}
+        source = body.decode('utf-8')
+        excerpts, missing = [], []
+        for name, after in WIFI_GETTER_EXCERPT_LENGTHS.items():
+            definition = re.search(r'["\']?' + re.escape(name) + r'["\']?\s*:\s*function\b',source)
+            if definition is None:
+                missing.append(name)
+                continue
+            start = max(0, definition.start()-160)
+            end = min(len(source), definition.end()+after)
+            excerpts.append({'getter':name, 'offset':definition.start(),
+                             'source':source[start:end]})
+        return {'status':'pinned_static_getters_only', 'sha256':digest,
+                'path':'/js/service.js', 'excerpts':excerpts,
+                'missing':missing, 'write_verified':False}
+    except (OSError, ValueError, UnicodeError, urllib.error.URLError):
         return {'status':'unavailable','excerpts':[], 'write_verified':False}
