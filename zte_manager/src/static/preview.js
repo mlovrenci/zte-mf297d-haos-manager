@@ -4,13 +4,13 @@
  const titles={overview:'Pregled',wifi:'Wi-Fi',devices:'Uređaji',reservations:'Rezervacije',lan:'LAN / DHCP',dns:'DNS',system:'Sustav',changes:'Promjene',signal:'Signal'};
  const labels={ssid:'SSID',channel:'Kanal',width:'Širina kanala',enabled:'Status (izvorna vrijednost)',security:'Zaštita (izvorna vrijednost)'};
  let snapshot=null,page='overview',active=null,busy=false,failed=false,receivedAt=0;
- let evidence=null,evidenceBusy=false;
+ let evidence=null,evidenceBusy=false,wifiEvidence=null,wifiEvidenceBusy=false;
  let previous=null,deltas=[],history=[],reservationData=null,reservationBusy=false;
  let deviceQuery='',deviceSource='',deviceSort='name',editNames=false,aliases={};
  const aliasKey='zte-manager-device-names-v1',validMac=x=>/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(x);
  try{const saved=JSON.parse(localStorage.getItem(aliasKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))for(const [mac,name] of Object.entries(saved).slice(0,256))if(validMac(mac)&&typeof name==='string'&&name.length<=32)aliases[mac.toLowerCase()]=name;}catch(e){}
  const namedDevices=()=>NetworkInsights.devices(snapshot).map(r=>({...r,reportedName:r.name,name:aliases[r.mac.toLowerCase()]||r.name}));
- const readPaths=new Set(['api/preview_snapshot','api/preview_reservations','api/webui_evidence']);
+ const readPaths=new Set(['api/preview_snapshot','api/preview_reservations','api/webui_evidence','api/webui_wifi_modules']);
  async function read(path,signal){if(!readPaths.has(path))throw Error('Nedopušten put');const response=await fetch(path,{method:'GET',cache:'no-store',signal});if(!response.ok)throw Error('HTTP '+response.status);return response.json();}
  function download(name,data){const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  const stale=()=>failed||Date.now()-receivedAt>300000;
@@ -35,9 +35,10 @@
    $('content').innerHTML=`<section class="card"><h2>${titles[page]}</h2><div class="facts">${pairs.map(([label,g,k])=>fact(label,value(g,k))).join('')}</div><p>Samo očitanje. Na ovom ekranu nema primjene promjena.</p></section>`;
   }
   if(page==='system')$('content').innerHTML=`<section class="card"><h2>Podrška i provjera</h2>${warningList()}<button id="exportDiagnostic">Preuzmi dijagnostiku bez identifikatora</button><p>Izvoz sadrži brojeve zapisa, dostupnost grupa i B08 podudaranje. Ne sadrži SSID, nazive, IP/MAC adrese ni zaporke.</p><div class="facts">${fact('Firmware',firmware)}${fact('B08 podudaranje',match?'Da':'Ne')}</div><p>Čitanje: prikazuju se isključivo vraćene vrijednosti. Priprema: SSID, kanal i širina ako su očitani. Zapisivanje: nije potvrđeno i nije dostupno.</p><p>Nema potvrđenog izvršivog zahtjeva. Provjera ispod čita ograničen broj izvornih HTML/JS datoteka bez izvršavanja koda.</p><button id="inspectWebui" ${evidenceBusy?'disabled':''}>${evidenceBusy?'Čitam izvorno sučelje…':'Provjeri izvorno web-sučelje'}</button>${evidence?`<p>Očitano datoteka: ${evidence.files.length}. Zapisivanje i dalje nije potvrđeno.</p><div class="table-scroll"><table><thead><tr><th>Datoteka</th><th>Reference naredbi</th></tr></thead><tbody>${evidence.files.map(f=>`<tr><td>${esc(f.path)}<small>SHA-256: ${esc(f.sha256)}</small></td><td>${esc(f.command_references.join(', ')||'Nema poznatih Wi-Fi referenci')}</td></tr>`).join('')}</tbody></table></div><p>${evidence.issues.length?'Dio provjere nije dovršen: '+esc(evidence.issues.join(', ')):'Očitane su početne statičke datoteke; dinamički moduli mogu nedostajati.'}</p>`:''}<h3>Nedostupna očitanja</h3><p>${Object.keys(snapshot.errors||{}).map(esc).join(', ')||'Nema prijavljenih grešaka grupa.'}</p><a href="live">Dijagnostika, povijest i write mode u postojećem panelu</a></section>`;
+  if(page==='system')$('content').insertAdjacentHTML('beforeend',`<section class="card"><h2>Ciljana provjera Wi-Fi modula</h2><p>Početne datoteke: izvorni menu, router i loader config. Čita se najviše 12 istovjetnih HTML/JS resursa, isključivo GET. Ne izvršava se JavaScript i ne čitaju se korisničke postavke.</p><button id="inspectWifiModules" ${wifiEvidenceBusy?'disabled':''}>${wifiEvidenceBusy?'Čitam Wi-Fi module…':'Analiziraj izvorne Wi-Fi module'}</button>${wifiEvidence?`<p>Pronađeno: ${wifiEvidence.files.length} datoteka. Nije dokazano da se ijedna postavka može mijenjati.</p><div class="table-scroll"><table><thead><tr><th>Datoteka</th><th>Literali modula</th><th>Wi-Fi parametri</th></tr></thead><tbody>${wifiEvidence.files.map(f=>`<tr><td>${esc(f.path)}<small>SHA-256: ${esc(f.sha256)}</small></td><td>${esc((f.wifi_literal_modules||[]).join(', ')||'Nema')}</td><td>${esc((f.parameter_references||[]).join(', ')||'Nema')}</td></tr>`).join('')}</tbody></table></div><p>${esc(wifiEvidence.issues.join(', ')||'Završeno unutar ograničenja.')}</p>`:''}<p class="note">Ovaj rezultat prikazuje samo statičke reference. Ne otkriva stvarne vrijednosti postavki niti omogućuje njihovo slanje.</p></section>`);
  }
  async function refresh(){
-  if(busy||reservationBusy||evidenceBusy)return;busy=true;$('refresh').disabled=true;$('editor').close();active=null;$('notice').textContent='Čitam router…';render();
+  if(busy||reservationBusy||evidenceBusy||wifiEvidenceBusy)return;busy=true;$('refresh').disabled=true;$('editor').close();active=null;$('notice').textContent='Čitam router…';render();
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
   try{const data=await read('api/preview_snapshot',controller.signal);if(!data.groups||!Array.isArray(data.clients))throw Error('Neispravan odgovor');previous=snapshot;snapshot=data;deltas=NetworkInsights.changes(previous,snapshot);history.push(NetworkInsights.signal(snapshot));history=history.slice(-60);failed=false;receivedAt=Date.now();reservationData=null;$('sample').textContent='Očitano: '+new Date(data.sample_time*1000).toLocaleString('hr-HR');$('notice').textContent='Očitanje završeno. Nijedna postavka nije promijenjena.';}
   catch(e){failed=true;$('notice').textContent='Očitanje nije uspjelo. '+(snapshot?'Prikazani su stari podaci; priprema je blokirana.':'Provjeri prijavu i dostupnost routera.');}
@@ -77,6 +78,17 @@
    if(field){field.hidden=false;field.value=output;field.focus();field.select();
     $('notice').textContent='Preglednik nije dopustio kopiranje. Označeni izvještaj možeš ručno kopirati.';}
   }
+ });
+ document.addEventListener('click',async e=>{
+  if(e.target.closest('button')?.id!=='inspectWifiModules'||busy||reservationBusy||evidenceBusy||wifiEvidenceBusy)return;
+  wifiEvidenceBusy=true;render();
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
+  try{
+   const result=await read('api/webui_wifi_modules',controller.signal);
+   if(!Array.isArray(result.files)||!Array.isArray(result.issues)||result.scan_scope!=='wifi_modules')throw Error('Neispravan odgovor');
+   wifiEvidence=result;
+  }catch(err){wifiEvidence={files:[],issues:['read_unavailable']};}
+  finally{clearTimeout(timer);wifiEvidenceBusy=false;render();}
  });
  setInterval(()=>{if(snapshot&&stale()&&!busy&&!failed){$('notice').textContent='Očitanje je starije od 5 minuta. Za novi nacrt ponovno očitaj router.';if(page==='wifi')render();}},15000);
  $('close').onclick=()=>$('editor').close();$('refresh').onclick=refresh;render();refresh();

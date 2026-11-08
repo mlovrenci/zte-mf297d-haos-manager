@@ -58,3 +58,9 @@ The pinned source includes additional, distinct setter builders: `WIFI_ADVANCE_S
 To investigate whether this B08 variant exposes different names, the preview performs one additional bounded GET with `selectedChannel`, `wifiMode`, `countryCode`, `abg_rate`. These names are **observed as setter parameters only**; GET support is unverified, and missing values remain unknown. The compatibility export includes presence flags, never values.
 
 For each SSID whose switch is explicitly read as `0` or `1`, the browser can build an on/off comparison alongside an SSID draft. A global guest switch of `0` and a per-SSID switch of `1` are not automatically considered contradictory: independent semantics remain unresolved. This never creates a sendable payload. The UI also labels recognized raw security codes, while guest security remains unknown when its getter field is absent.
+
+## Focused Wi-Fi UI module scan (v0.7.0)
+
+The original general WebUI inspection spent its fixed 12-request budget on bootstrap and unrelated library files, before it reached the actual menu/router implementation. The **Sustav → Analiziraj izvorne Wi-Fi module** action now launches a separate bounded inspector starting exclusively at `/js/config/menu.js`, `/js/router.js`, and `/js/config/config.js`. It follows only literal Wi-Fi-related AMD dependencies or Wi-Fi module paths quoted in those static files. This is a source *reference inventory* only, not a declaration that a UI route exists or a command works. No automatic polling, JavaScript execution, source export or Goform writes take place.
+
+The result must be validated against actual B08 asset hashes and observed static names before trusting any claimed parameter-to-screen mapping. Channel/width setters remain disabled until there is verified getter and caller evidence. All other router settings remain untouched.

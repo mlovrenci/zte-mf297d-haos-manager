@@ -1,3 +1,9 @@
+## 0.7.0
+
+- Add an explicit, focused stock WebUI Wi-Fi module inventory to the read-only **Sustav** panel. Starts only at fixed `/js/config/menu.js`, `/js/router.js`, and `/js/config/config.js` paths, then follows literal Wi-Fi-related static module references.
+- Scan uses bounded, same-origin GET requests only. It never executes JavaScript, contacts Goform endpoints, follows external redirects, or exposes raw source/passwords. Only file hashes, module references and allowlisted Wi-Fi parameter names are shown.
+- This improves coverage beyond the general WebUI inventory's 12-file limit without implying B08 read/write support. No actual router configuration or write gates changed.
+
 ## 0.6.9
 
 - Allow a purely local SSID on/off **draft** for observed `0`/`1` switches. No new write endpoint or Goform send; global guest enablement and per-SSID switches remain distinct.

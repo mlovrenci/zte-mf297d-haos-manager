@@ -20,6 +20,7 @@ PARAMETERS = ('ssid', 'wifiEnabled', 'm_ssid_enable', 'broadcastSsidEnabled',
               'MAX_Access_num', 'security_mode', 'cipher', 'NoForwarding',
               'passphrase', 'wifi_lbd_enable', 'wifi_chip1_channel',
               'wifi_chip2_channel', 'wifi_chip1_bandwidth', 'wifi_chip2_bandwidth')
+WIFI_MODULE_SEEDS = ('/js/config/menu.js', '/js/router.js', '/js/config/config.js')
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -73,6 +74,27 @@ def module_references(source):
     return names[:32]
 
 
+def wifi_literal_modules(source):
+    """Identify literal Wi-Fi module paths from menu/router tables, not runtime data.
+
+    Some stock ZTE menus load their views dynamically, outside AMD dependency
+    arrays. A slash is required to avoid treating radio keys as module names.
+    """
+    names = []
+    for name in re.findall(r"[\"']([A-Za-z0-9_./-]{1,100})[\"']", source):
+        if '/' not in name or '..' in name or name.startswith('/'):
+            continue
+        if any(word in name.lower() for word in ('wifi', 'wlan', 'wireless')) and name not in names:
+            names.append(name)
+        if len(names) >= 32:
+            break
+    return names
+
+
+def wifi_relevant_module(name):
+    return any(word in name.lower() for word in ('wifi', 'wlan', 'wireless'))
+
+
 def literal_config(source):
     """Extract bounded literal RequireJS paths; intentionally ignore expressions."""
     base = re.search(r"[\"']?baseUrl[\"']?\s*:\s*[\"']([A-Za-z0-9_./-]+)[\"']", source)
@@ -87,13 +109,14 @@ def literal_config(source):
     return {'base_url':base.group(1) if base else None, 'paths':dict(list(aliases.items())[:64])}
 
 
-def inspect(client, opener=None, clock=time.monotonic):
+def inspect(client, opener=None, clock=time.monotonic, *, wifi_focus=False):
     if opener is None:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
             urllib.request.HTTPCookieProcessor(client.cookies), NoRedirect())
     start = clock()
-    queue = [client.base + '/']
-    module_base = client.base + '/'
+    queue = ([client.base + path for path in WIFI_MODULE_SEEDS]
+             if wifi_focus else [client.base + '/'])
+    module_base = client.base + ('/js/' if wifi_focus else '/')
     aliases = {}
     entry_urls = set()
     visited, files, issues, attempts = set(), [], [], []
@@ -128,9 +151,12 @@ def inspect(client, opener=None, clock=time.monotonic):
                 attempt['status'] = 'read'
                 config = literal_config(source) if urllib.parse.urlsplit(url).path.endswith('.js') else {'base_url':None,'paths':{}}
                 path = urllib.parse.urlsplit(url).path or '/'
+                refs = module_references(source) if path.endswith('.js') else []
+                wifi_refs = wifi_literal_modules(source) if wifi_focus and path.endswith('.js') else []
                 files.append({'path':path, 'sha256':hashlib.sha256(body).hexdigest(), 'bytes':len(body),
                     'loader_config':config,
-                    'module_references':module_references(source) if path.endswith('.js') else [],
+                    'module_references':refs,
+                    'wifi_literal_modules':wifi_refs,
                     'command_references':[x for x in COMMANDS if re.search(r'\b'+re.escape(x)+r'\b',source)],
                     'parameter_references':[x for x in PARAMETERS if re.search(r'\b'+re.escape(x)+r'\b',source)]})
                 if path.endswith('.js'):
@@ -141,10 +167,12 @@ def inspect(client, opener=None, clock=time.monotonic):
                             module_base = candidate_base
                     if url in entry_urls:
                         aliases.update(config['paths'])
-                    for name in module_references(source):
+                    names = (list(dict.fromkeys(name for name in refs + wifi_refs
+                            if wifi_relevant_module(name))) if wifi_focus else refs)
+                    for name in names:
                         matching = sorted((key for key in aliases if name == key or name.startswith(key+'/')),key=len,reverse=True)
                         resolved = aliases[matching[0]]+name[len(matching[0]):] if matching else name
-                        candidate = safe_url(client.base,module_base,resolved if resolved.endswith('.js') else resolved+'.js')
+                        candidate = safe_url(client.base,module_base,resolved if resolved.endswith(('.js','.html')) else resolved+'.js')
                         if candidate and candidate not in visited and candidate not in queue and len(queue) < MAX_FILES:
                             queue.append(candidate)
                 if path == '/' or path.endswith(('.html','.htm')):
@@ -174,8 +202,14 @@ def inspect(client, opener=None, clock=time.monotonic):
         issues.append('scan_incomplete')
     return {'status':'references_only' if files else 'unavailable', 'files':files,
             'attempts':attempts, 'issues':sorted(set(issues)), 'write_verified':False,
+            'scan_scope':'wifi_modules' if wifi_focus else 'entry_assets',
             'limits':{'files':MAX_FILES,'file_bytes':MAX_FILE_BYTES,'seconds':MAX_SECONDS},
             'note':'Static references are not parameter mappings or proof of B08 write support. Dynamic modules may be absent.'}
+
+
+def inspect_wifi_modules(client, opener=None, clock=time.monotonic):
+    """Opt-in bounded GET-only scan of fixed stock Wi-Fi UI module entrypoints."""
+    return inspect(client, opener=opener, clock=clock, wifi_focus=True)
 
 
 SERVICE_SHA256 = '8d5588e3b912827bc09a6380a84f4bef2815b56ce0ad487fdc63c5148c13aaa8'
