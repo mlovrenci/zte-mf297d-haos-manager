@@ -151,11 +151,14 @@ class EvidenceTests(unittest.TestCase):
   path='/js/wifi/wifi_basic.js'
   o=Opener({BASE+path:source})
   with patch.dict(WIFI_FEATURE_PINNED,{path:hashlib.sha256(source).hexdigest()},clear=True):
-   result=wifi_feature_source(c,o)
+   result=wifi_feature_source(c,'basic',o)
   self.assertEqual(result['status'],'pinned_static_source_only')
   self.assertEqual(result['files'][0]['source'],source.decode())
   o=Opener({BASE+path:b'changed'})
   with patch.dict(WIFI_FEATURE_PINNED,{path:hashlib.sha256(source).hexdigest()},clear=True):
-   result=wifi_feature_source(c,o)
+   result=wifi_feature_source(c,'basic',o)
   self.assertEqual(result['status'],'asset_mismatch')
   self.assertEqual(result['files'],[])
+  o=Opener({})
+  self.assertEqual(wifi_feature_source(c,'../service',o)['status'],'unsupported_module')
+  self.assertFalse(o.requests)

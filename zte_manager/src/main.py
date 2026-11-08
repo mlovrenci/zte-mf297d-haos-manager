@@ -1,4 +1,4 @@
-"""ZTE Manager v0.7.4: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.7.5: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -12,7 +12,8 @@ from time import monotonic, time
 from zte_api import RouterClient, RouterError
 from wifi_contracts import catalogue as wifi_contract_catalogue
 from webui_evidence import (inspect as inspect_webui, inspect_wifi_modules,
-                            inspect_wifi_channels, wifi_source, wifi_ui_source, wifi_feature_source)
+                            inspect_wifi_channels, wifi_source, wifi_ui_source,
+                            wifi_feature_source, WIFI_FEATURE_NAMES)
 from preview_data import collect as collect_preview, reservations as preview_reservations
 from mqtt_probe import publish_probe, publish_dns_probe, MQTTProbeError
 from dns_option6_probe import probe_dns_option6
@@ -20,7 +21,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.7.4"
+VERSION = "0.7.5"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -541,8 +542,14 @@ class Handler(BaseHTTPRequestHandler):
                     result = wifi_ui_source(connect(o))
                 return self.response(200, result)
             if path == "/api/wifi_feature_source_evidence":
+                return self.response(200, {'status':'module_selection_required',
+                    'modules':list(WIFI_FEATURE_NAMES), 'write_verified':False})
+            if path.startswith("/api/wifi_feature_source_evidence/"):
+                module_name = path.removeprefix("/api/wifi_feature_source_evidence/")
+                if module_name not in WIFI_FEATURE_NAMES:
+                    return self.response(404, {'error':'unknown_module'})
                 with ROUTER_LOCK:
-                    result = wifi_feature_source(connect(o))
+                    result = wifi_feature_source(connect(o),module_name)
                 return self.response(200, result)
             if path == "/api/preview_reservations":
                 with ROUTER_LOCK:

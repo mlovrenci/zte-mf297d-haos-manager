@@ -237,6 +237,16 @@ WIFI_FEATURE_PINNED = {
     '/js/wifi/wifi_main.js': '0dbcd85d76dd46bed9f511388f4fe2ab585904a375b2c619f63994d84365e1e9',
     '/js/wifi/wifi_guest.js': 'bab1b2a98bb41beb3c5337917b2abbe0fa9fbd800d9cf20134599db1d552f593',
     '/js/wifi/wifi_advance.js': '235d0f1c70d6aec2195df8102f8aec721a05bba669e2de63d2b4b4983dc05c73',
+    '/js/wifi/wifi_channel.js': '61b17157281eff2b8cc36d497c4459b45055918786f2e00e41cd95e313dcbfe8',
+    '/js/wifi/wifi_channel_5g.js': '1595fc34b812c3615d44fa854382b0a18a41f705a3c286b7aa12b90835d3a316',
+}
+WIFI_FEATURE_NAMES = {
+    'basic': '/js/wifi/wifi_basic.js',
+    'main': '/js/wifi/wifi_main.js',
+    'guest': '/js/wifi/wifi_guest.js',
+    'advance': '/js/wifi/wifi_advance.js',
+    'channel': '/js/wifi/wifi_channel.js',
+    'channel_5g': '/js/wifi/wifi_channel_5g.js',
 }
 
 
@@ -250,9 +260,16 @@ def wifi_ui_source(client, opener=None):
     return _pinned_source(client, WIFI_UI_PINNED, opener)
 
 
-def wifi_feature_source(client, opener=None):
-    """Review four exactly pinned stock B08 Wi-Fi callers, never runtime data."""
-    return _pinned_source(client, WIFI_FEATURE_PINNED, opener)
+def wifi_feature_source(client, name, opener=None):
+    """Review one exactly pinned stock B08 Wi-Fi caller, never runtime data.
+
+    One file per response stays under HA's 50 KiB app proxy JSON limit.
+    A caller can select only six fixed source names, never an arbitrary URL.
+    """
+    path = WIFI_FEATURE_NAMES.get(name)
+    if path is None:
+        return {'status':'unsupported_module', 'files':[], 'write_verified':False}
+    return _pinned_source(client, {path:WIFI_FEATURE_PINNED[path]}, opener)
 
 
 def _pinned_source(client, pinned, opener):

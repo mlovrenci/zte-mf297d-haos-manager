@@ -1,3 +1,9 @@
+## 0.7.5
+
+- Fix Home Assistant's 50 KiB app proxy response limit: the stock Wi-Fi source review now returns one hash-pinned module per request, selected only from a six-name fixed allowlist (`basic`, `main`, `guest`, `advance`, `channel`, `channel_5g`). Invalid names fail before accessing the router.
+- Pin both observed channel-module SHA-256 hashes, in addition to the four original SSID/advanced scripts. The unqualified evidence endpoint now returns only the available names, not an oversized source payload.
+- All reads remain exact-path GETs with B08 firmware/hash validation. No executable Wi-Fi commands, router changes, or altered write gates.
+
 ## 0.7.4
 
 - Add two explicit, fixed-path B08 channel-module GET-only diagnostics (`wifi_channel.js`, `wifi_channel_5g.js`) independent of the 12-file generic scan limit.

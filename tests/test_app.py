@@ -131,7 +131,7 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.7.4')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.7.5')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_studio_and_live_routes(self):
   for path, marker in [("/", b"preview.js"), ("/index.html", b"preview.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
@@ -181,9 +181,12 @@ class HTTPTests(unittest.TestCase):
   source={'status':'asset_mismatch','files':[],'write_verified':False}
   channels={'scan_scope':'channel_modules','files':[],'issues':[],'write_verified':False}
   with patch.object(main,'wifi_feature_source',return_value=source) as feature, patch.object(main,'inspect_wifi_channels',return_value=channels) as scan, patch.object(FakeClient,'set',side_effect=AssertionError('write')) as write:
-   self.assertEqual(self.fetch('/api/wifi_feature_source_evidence'),source)
+   self.assertEqual(self.fetch('/api/wifi_feature_source_evidence')['status'],'module_selection_required')
+   self.assertEqual(self.fetch('/api/wifi_feature_source_evidence/basic'),source)
    self.assertEqual(self.fetch('/api/webui_wifi_channels'),channels)
-  feature.assert_called_once();scan.assert_called_once();write.assert_not_called()
+   with self.assertRaises(HTTPError):self.fetch('/api/wifi_feature_source_evidence/anything')
+  feature.assert_called_once();self.assertEqual(feature.call_args.args[1],'basic')
+  scan.assert_called_once();write.assert_not_called()
  def test_wifi_details_retains_radio_if_station_list_fails(self):
   with patch.object(FakeClient,'clients',side_effect=RouterError('station_list unavailable')):
    response=self.fetch('/api/wifi_details')
