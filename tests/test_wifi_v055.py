@@ -10,6 +10,68 @@ from zte_api import RouterClient, RouterError, WIFI_DETAIL_PROBES
 
 
 class WifiDiagnosticsTests(unittest.TestCase):
+    def test_original_ap_get_only_allowed_chip_ap_pairs_and_scrubs_secrets(self):
+        client = RouterClient('192.168.1.1')
+        calls = []
+        def fake_get(keys):
+            calls.append(keys)
+            if 'cr_version' in keys:
+                return {'cr_version': 'CR_A1HRMF297DV1.0.0B08'}
+            if keys == ['queryAccessPointInfo']:
+                return {'ResponseList':[
+                    {'ChipIndex':'0','AccessPointIndex':'0','AccessPointSwitchStatus':'1',
+                     'ApBroadcastDisabled':'0','ApIsolate':'0','ApMaxStationNumber':'32',
+                     'AuthMode':'WPA2PSK','SSID':'HOME_PRIVATE','Password':'TOP_SECRET',
+                     'PreSharedKey':'TOP_SECRET','unknown':{'password':'TOP_SECRET'}},
+                    {'ChipIndex':1,'AccessPointIndex':1,'AccessPointSwitchStatus':0,
+                     'ApMaxStationNumber':16,'AuthMode':'OTHER_SECRET'},
+                ], 'wifi_password':'TOP_SECRET'}
+            raise AssertionError('Unexpected read')
+        with patch.object(client,'get',side_effect=fake_get), patch.object(client,'set',side_effect=AssertionError('router write')):
+            result = client.wifi_original_ap_read()
+        self.assertEqual(len(calls),2)
+        self.assertEqual(calls[1],['queryAccessPointInfo'])
+        self.assertEqual(result['ap_status'],'observed')
+        self.assertEqual(result['access_points'][0],{'chip_index':'0','ap_index':'0','fields':{
+            'AccessPointSwitchStatus':'1','ApBroadcastDisabled':'0','ApIsolate':'0',
+            'ApMaxStationNumber':'32','AuthMode':'WPA2PSK'}})
+        self.assertEqual(result['access_points'][1]['fields'],{'AccessPointSwitchStatus':'0','ApMaxStationNumber':'16'})
+        self.assertNotIn('TOP_SECRET',str(result))
+        self.assertNotIn('HOME_PRIVATE',str(result))
+        self.assertNotIn('OTHER_SECRET',str(result))
+        self.assertFalse(result['write_available'])
+
+    def test_original_ap_mismatch_never_queries_sensitive_getter(self):
+        client=RouterClient('192.168.1.1')
+        with patch.object(client,'get',return_value={'cr_version':'some_other_firmware'}) as get:
+            result=client.wifi_original_ap_read()
+        self.assertEqual(result['ap_status'],'not_queried')
+        get.assert_called_once()
+
+    def test_original_ap_invalid_and_duplicate_data_fail_closed(self):
+        client=RouterClient('192.168.1.1')
+        for payload in ['INVALID_SECRET', {'Password':'SECRET'},
+                        [{'ChipIndex':'0','AccessPointIndex':'0'}, {'ChipIndex':'0','AccessPointIndex':'0'}],
+                        [{'ChipIndex':'0','AccessPointIndex':'0','Password':'SECRET'}]*9]:
+            def fake_get(keys):
+                if 'cr_version' in keys:return {'cr_version':'CR_A1HRMF297DV1.0.0B08'}
+                return {'ResponseList':payload}
+            with self.subTest(payload_type=type(payload).__name__), patch.object(client,'get',side_effect=fake_get):
+                result=client.wifi_original_ap_read()
+            self.assertEqual(result['access_points'],[])
+            self.assertIn(result['ap_status'],('read_unavailable','unsupported_or_invalid_shape'))
+            self.assertNotIn('SECRET',str(result))
+
+    def test_original_ap_unknown_indices_return_no_identifiers(self):
+        client=RouterClient('192.168.1.1')
+        def fake_get(keys):
+            return ({'cr_version':'CR_A1HRMF297DV1.0.0B08'} if 'cr_version' in keys else
+                    {'ResponseList':[{'ChipIndex':'7','AccessPointIndex':'5','SSID':'SECRET'}]})
+        with patch.object(client,'get',side_effect=fake_get):result=client.wifi_original_ap_read()
+        self.assertEqual(result['ap_status'],'unknown_indices')
+        self.assertEqual(result['access_points'],[])
+        self.assertNotIn('SECRET',str(result))
+
     def test_original_b08_radio_gets_only_two_pinned_queries_and_scrubs_secrets(self):
         client = RouterClient("192.168.1.1")
         calls=[]

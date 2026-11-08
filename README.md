@@ -4,7 +4,7 @@ Home Assistant OS App for ZTE MF297D routers using local Goform API, with a web 
 
 ## Status
 
-Version: **0.5.3**. Read capabilities include LTE/WAN, LAN/DHCP, Wi-Fi, clients, traffic and diagnostic data.
+Version: **0.8.0**. Read capabilities include LTE/WAN, LAN/DHCP, Wi-Fi, clients, traffic and diagnostic data, plus manual original B08 radio and access-point readouts with a strict server-side secret filter.
 
 **General router configuration writes remain unverified on the actual A1 B08 firmware and are disabled by default.** DHCP MAC/IP reservation Add/Delete is independently confirmed and implemented. DHCP Option 6 DNS write remains **unimplemented/unconfirmed**. Don't disable DHCP or modify WAN, Wi-Fi, APN or DNS until each operation is independently verified and recovery access is available.
 
@@ -107,6 +107,8 @@ Since v0.7.7, this reader additionally resolves literal minified export aliases 
 `GET /api/wifi_original_radio_read` (v0.7.8) is a manual, one-shot and B08-checked read-only probe using just the newly identified stock commands `queryWiFiChipAdvancedInfo` and `queryWiFiModuleSwitch`. It returns only whitelisted, short scalar radio fields (including raw `ChipIndex`, `Channel` and `BandWidth`) and the uninterpreted module switch code. It never returns the raw response or calls `queryAccessPointInfo`, which can contain SSID credentials; routine refresh paths are unchanged. Empty or invalid data is explicitly unknown rather than mapped to a 2.4/5 GHz setting by guesswork.
 
 In v0.7.9 the new Wi-Fi preview adds a manual "Izvorni B08 radio podaci" read card, showing safe original per-radio codes only after pressing its button; the standard page load does not run the additional radio queries.
+
+In v0.8.0 the Wi-Fi preview also provides "Izvorne B08 pristupne točke". Its separate button executes the stock `queryAccessPointInfo` GET only on demand, after matching firmware. The route never exposes raw responses, SSIDs or passwords: it emits only whitelisted, bounded status fields for the four confirmed main/guest and 2.4/5 GHz index pairs. No automatic request or configuration writes are added.
 
 ### Reviewed service contracts (v0.6.6)
 

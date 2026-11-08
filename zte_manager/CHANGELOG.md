@@ -1,3 +1,9 @@
+## 0.8.0
+
+- Add a separate, manual, firmware-gated GET-only B08 `queryAccessPointInfo` route with strict server-side projection. Only four known chip/access-point pairs and bounded non-secret flags, max-station count and known authentication codes can leave the app; SSIDs, passwords, raw records and error bodies are never returned.
+- Add an on-demand Wi-Fi preview card for the original main/guest 2.4/5 GHz access-point statuses. Raw 0/1 flags remain labeled as codes, not inferred connectivity. Refresh clears previous one-shot results; no automatic extra Goform reads or changes to write gates.
+- Exercise secret-injection, malformed/duplicate responses, firmware mismatch, route GET-only and client escaping in regression tests.
+
 ## 0.7.9
 
 - Add an on-demand "Izvorni B08 radio podaci" card in the new mobile-friendly Wi-Fi preview. Distinguish 2.4/5 GHz chip indices proven by original callers; show only selected raw channels/width/mode/region and the radio-module code.
