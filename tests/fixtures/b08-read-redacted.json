@@ -1,0 +1,49 @@
+{
+  "provenance": {
+    "kind": "redacted_actual_read",
+    "date": "2026-11-08",
+    "manager_version": "0.6.6",
+    "ssid_values": "replaced",
+    "clients": "omitted",
+    "sample_time": "replaced"
+  },
+  "groups": {
+    "device": {
+      "cr_version": "CR_A1HRMF297DV1.0.0B08"
+    },
+    "wifi": {
+      "wifi_onoff_state": "1",
+      "wifi_chip1_ssid1_ssid": "Fixture-1-1",
+      "wifi_chip2_ssid1_ssid": "Fixture-2-1",
+      "wifi_chip1_ssid1_auth_mode": "WPA2PSK",
+      "wifi_chip2_ssid1_auth_mode": "WPA2PSK",
+      "wifi_chip1_ssid1_switch_onoff": "1",
+      "wifi_chip2_ssid1_switch_onoff": "1",
+      "wifi_chip1_ssid1_max_access_num": "64",
+      "wifi_chip2_ssid1_max_access_num": "64",
+      "guest_switch": "0",
+      "wifi_chip1_ssid1_access_sta_num": "22",
+      "wifi_chip2_ssid1_access_sta_num": "0"
+    },
+    "wifi_extra": {
+      "wifi_chip1_ssid1_switch_onoff": "1",
+      "wifi_chip2_ssid1_switch_onoff": "1",
+      "wifi_chip1_ssid2_switch_onoff": "1",
+      "wifi_chip2_ssid2_switch_onoff": "1",
+      "wifi_chip1_ssid2_ssid": "Fixture-1-2",
+      "wifi_chip2_ssid2_ssid": "Fixture-2-2",
+      "wifi_chip1_ssid1_wifi_coverage": "long_mode"
+    }
+  },
+  "fields": {
+    "wifi_lbd_enable": "0",
+    "wifi_dfs_status": "4",
+    "wifi_eacs_enable": "0",
+    "wifi_chip1_ssid2_access_sta_num": "3",
+    "wifi_chip2_ssid2_access_sta_num": "0"
+  },
+  "errors": {},
+  "clients": [],
+  "sample_time": 1,
+  "write_available": false
+}
