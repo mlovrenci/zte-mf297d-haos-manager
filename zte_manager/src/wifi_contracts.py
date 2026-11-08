@@ -27,6 +27,25 @@ _BASE = {
              'conditional_fields':{'wifi_band':'wifiBand if WIFI_BAND_SUPPORT','abg_rate':'rate unless WIFI_BAND_SUPPORT and wifiBand == a','wifi_11n_cap':'bandwidth if WIFI_BANDWIDTH_SUPPORT'}},
         ],
     },
+    'WIFI_ADVANCE_SET': {
+        'source_function':'ft',
+        'fields':{'wifiMode':'mode','countryCode':'countryCode',
+                  'm_WirelessMode':'m_WirelessMode','m_CountryCode':'m_CountryCode',
+                  'selectedChannel':'channel','m_Channel':'m_Channel'},
+        'conditional_fields':{
+            'wifi_band':'wifiBand if WIFI_BAND_SUPPORT',
+            'm_wifi_band':'m_wifi_band if WIFI_BAND_SUPPORT',
+            'abg_rate':'rate unless WIFI_BAND_SUPPORT and wifiBand == a',
+            'wifi_11n_cap':'bandwidth if WIFI_BANDWIDTH_SUPPORT',
+            'm_wifi_11n_cap':'m_wifi_11n_cap if WIFI_BANDWIDTH_SUPPORT'},
+    },
+    'SET_M_WIFI_INFO': {
+        'source_function':'l',
+        'fields':{'m_WirelessMode':'m_WirelessMode','m_CountryCode':'m_CountryCode',
+                  'm_Channel':'m_Channel'},
+        'conditional_fields':{'m_wifi_band':'m_wifi_band if WIFI_BAND_SUPPORT',
+                              'm_wifi_11n_cap':'m_wifi_11n_cap if WIFI_BANDWIDTH_SUPPORT'},
+    },
 }
 
 
@@ -47,4 +66,5 @@ def catalogue():
             },
             'unresolved':['UI caller to radio/SSID mapping','Meaning of coded channel/width/security values',
                           'Required unchanged values and config flags','Shared transport/authentication wrapper Je',
+                          'Whether the setter-only aliases are supported by the read API',
                           'Controlled live write followed by independent readback']}

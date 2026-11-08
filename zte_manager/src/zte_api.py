@@ -44,6 +44,11 @@ WIFI_DETAIL_PROBES = {
     # Exact non-secret read keys observed in stock B08 service.js function pt.
     "b08_advanced": ["WirelessMode", "CountryCode", "Channel", "HT_MCS", "wifi_band", "wifi_11n_cap"],
     "b08_advanced_secondary": ["m_WirelessMode", "m_CountryCode", "m_Channel", "m_wifi_band", "m_wifi_11n_cap", "m_band_enable"],
+    # Getter pt does not return channel/width on the tested A1 B08 router.
+    # These *setter* parameter names were verified in the pinned service.js,
+    # but are unverified as GET keys; probe separately and never use them as
+    # evidence of a working write or an allowed channel/bandwidth value.
+    "b08_advanced_aliases": ["selectedChannel", "wifiMode", "countryCode", "abg_rate"],
     # Non-secret keys present in the stock B08 service.js gt status getter.
     # Keep separate from the normal Wi-Fi group so they are only requested
     # when the user opens/refreshes the read-only preview.

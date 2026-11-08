@@ -13,7 +13,11 @@ class ContractTests(unittest.TestCase):
   self.assertEqual(c['read_mappings']['guest_ssid']['radio1'],'wifi_chip1_ssid2_ssid')
   self.assertEqual(c['read_mappings']['main_ssid']['radio2'],'wifi_chip2_ssid1_ssid')
   self.assertIn('does not map',c['read_mappings']['note'])
-  c['contracts'].clear();self.assertEqual(len(catalogue()['contracts']),3)
+  self.assertEqual(c['contracts']['WIFI_ADVANCE_SET']['source_function'],'ft')
+  self.assertEqual(c['contracts']['WIFI_ADVANCE_SET']['fields']['selectedChannel'],'channel')
+  self.assertEqual(c['contracts']['SET_M_WIFI_INFO']['source_function'],'l')
+  self.assertIn('setter-only aliases',c['unresolved'][-2])
+  c['contracts'].clear();self.assertEqual(len(catalogue()['contracts']),5)
  def test_advanced_reads_exclude_secrets(self):
   keys=WIFI_DETAIL_PROBES['b08_advanced']+WIFI_DETAIL_PROBES['b08_advanced_secondary']
   self.assertIn('Channel',keys);self.assertIn('m_wifi_11n_cap',keys)
@@ -23,3 +27,8 @@ class ContractTests(unittest.TestCase):
   self.assertEqual(keys,['wifi_chip1_ssid2_max_access_num','wifi_chip2_ssid2_max_access_num',
                          'm_ssid_enable','m_HideSSID'])
   self.assertFalse(any(word in key.lower() for key in keys for word in ('password','passphrase','psk','wps','pin')))
+ def test_unverified_advanced_alias_reads_are_bounded_and_nonsecret(self):
+  self.assertEqual(WIFI_DETAIL_PROBES['b08_advanced_aliases'],
+                   ['selectedChannel','wifiMode','countryCode','abg_rate'])
+  self.assertFalse(any(word in key.lower() for key in WIFI_DETAIL_PROBES['b08_advanced_aliases']
+                       for word in ('password','passphrase','psk','wps','pin')))

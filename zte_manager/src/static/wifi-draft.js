@@ -3,6 +3,17 @@
 const WifiDraft = (() => {
   const expected='CR_A1HRMF297DV1.0.0B08';
   const scalar=v=>(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''?String(v):null;
+  const securityNames=Object.freeze({
+    WPA2PSK:'WPA2-PSK (izvorni kod)',
+    WPAPSKWPA2PSK:'WPA/WPA2 miješani način (izvorni kod)',
+    WPA3PSK:'WPA3-PSK (izvorni kod)',
+    WPA2PSKWPA3PSK:'WPA2/WPA3 miješani način (izvorni kod)',
+    WPAPSK:'WPA-PSK (izvorni kod)',
+    OPEN:'Otvoreno, prema izvornom kodu',
+    NONE:'Bez zaštite, prema izvornom kodu'
+  });
+  const securityLabel=code=>code===null||code===undefined||code===''?'Nije očitano':Object.hasOwn(securityNames,String(code))?securityNames[String(code)]:'Kod nije mapiran; provjeri izvornu vrijednost';
+  const editableEnabled=code=>code==='0'||code==='1';
   function networks(snapshot){
     const g=snapshot.groups||{},f={...g.wifi,...g.wifi_extra,...snapshot.fields};
     return [1,2].flatMap(chip=>[1,2].map(ssid=>{
@@ -17,9 +28,10 @@ const WifiDraft = (() => {
     const n=networks(snapshot).find(n=>n.id===id);if(!n)throw Error('Nepoznata mreža.');
     const changes=[];
     for(const [key,raw] of Object.entries(values)){
-      if(!['ssid','channel','width'].includes(key))throw Error('Ova postavka još nema editor.');
+      if(!['ssid','enabled','channel','width'].includes(key))throw Error('Ova postavka još nema editor.');
       const value=String(raw);
       if(n.values[key]===null)throw Error('Trenutna vrijednost nije očitana; promjena je blokirana.');
+      if(key==='enabled'&&(!editableEnabled(n.values.enabled)||!editableEnabled(value)))throw Error('Prekidač podržava samo potvrđene kodove 0 i 1; promjena je blokirana.');
       if(value===n.values[key])continue;
       if(key==='ssid'&&(!value.trim()||new TextEncoder().encode(value).length>32||/[\x00-\x1f\x7f]/.test(value)))throw Error('SSID mora imati 1–32 bajta, bez kontrolnih znakova.');
       // Syntax validation only: no regional/channel support inferred from this range.
@@ -29,8 +41,8 @@ const WifiDraft = (() => {
     }
     if(!changes.length)throw Error('Nema promjena za pregled.');
     return {mode:'local_draft_only',firmware:expected,network:id,sample_time:snapshot.sample_time,changes,sendable:false,command:null,
-      blockers:['Struktura servisnih naredbi je pregledana; povezivanje UI pozivatelja s ovim radiom/SSID-om još nije potvrđeno.','Nisu potvrđeni dopušteni kanali/širine, obavezna polja ni utjecaj na ostale mreže.','Nema odobrenog live testa ni potvrde ponovnim očitanjem.']};
+      blockers:['Struktura servisnih naredbi je pregledana; povezivanje UI pozivatelja s ovim radiom/SSID-om još nije potvrđeno.','Nisu potvrđeni dopušteni kanali/širine, obavezna polja ni utjecaj na ostale mreže.','Per-SSID prekidač i globalni guest status možda nisu ekvivalentni; ovaj nacrt ne uključuje ni jednu stvarnu promjenu.','Nema odobrenog live testa ni potvrde ponovnim očitanjem.']};
   }
-  return {networks,plan,expected};
+  return {networks,plan,expected,securityLabel,editableEnabled};
 })();
 if(typeof module!=='undefined')module.exports=WifiDraft;

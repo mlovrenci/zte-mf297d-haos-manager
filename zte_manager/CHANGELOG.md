@@ -1,3 +1,10 @@
+## 0.6.9
+
+- Allow a purely local SSID on/off **draft** for observed `0`/`1` switches. No new write endpoint or Goform send; global guest enablement and per-SSID switches remain distinct.
+- Explain exact, known raw security-mode codes without falsely inferring guest protection or WPA3 support. Unknown codes stay unknown.
+- Add four non-secret, setter-named **GET candidates** for channel/mode/region/rate with separate failure handling and values-free compatibility export. Their names in original B08 source do not prove readable or writable fields.
+- Extend the static-only advanced Wi-Fi contracts for `WIFI_ADVANCE_SET` and `SET_M_WIFI_INFO`. All live router write gates remain unchanged.
+
 ## 0.6.8
 
 - Add an evidence-based read-only guest Wi-Fi detail section and expose additional non-secret guest/status keys from the stock A1 B08 getter, on explicit preview refresh only.

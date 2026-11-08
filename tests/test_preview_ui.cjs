@@ -20,6 +20,16 @@ test('evidence-backed guest panel shows raw flags without an extra router reques
   assert.match(output,/nisu ekvivalentni/);assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'}]);
  }finally{u.close()}
 });
+test('local SSID on/off draft never issues a router write',async()=>{
+ const u=setup();try{
+  await u.flush();u.click('[data-page="wifi"]');u.click('[data-edit="1:2"]');
+  const select=u.d.querySelector('[name="enabled"]');assert.equal(select.disabled,false);
+  assert.equal(select.value,'1');select.value='0';select.dispatchEvent(new u.w.Event('change',{bubbles:true}));
+  u.submit();assert.match(u.d.querySelector('#review').textContent,/SSID prekidač/);
+  assert.match(u.d.querySelector('#review').textContent,/slanje blokirano/);
+  assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'}]);
+ }finally{u.close()}
+});
 test('failed refresh locks drafts, keeps visible old data, sends only allowlisted reads',async()=>{const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.fail();u.click('#refresh');await u.flush();assert.match(u.d.querySelector('#notice').textContent,/stari podaci/);assert.equal(u.d.querySelector('[data-edit="1:1"]').disabled,true);assert.ok(u.calls.every(c=>c.method==='GET'&&c.url==='api/preview_snapshot'));}finally{u.close()}});
 test('device search, source failures, comparisons and reservation uncertainty',async()=>{const u=setup();try{await u.flush();u.click('[data-page="devices"]');assert.match(u.d.querySelector('#content').textContent,/LAN popis nije dostupan/);const input=u.d.querySelector('#deviceQuery');input.value='missing';input.dispatchEvent(new u.w.Event('input',{bubbles:true}));assert.match(u.d.querySelector('#deviceTable').textContent,/Nema zapisa/);u.rename();u.click('#refresh');await u.flush();u.click('[data-page="changes"]');assert.match(u.d.querySelector('#content').textContent,/Changed home/);u.click('[data-page="reservations"]');u.click('#readReservations');await u.flush();assert.match(u.d.querySelector('#content').textContent,/stanje nije potvrđeno/);assert.ok(u.calls.every(c=>c.method==='GET'));}finally{u.close()}});
 
