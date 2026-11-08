@@ -22,3 +22,11 @@ Share only `wifi-read-review.json`. The analyzer has no networking code. It keep
 ## Remaining boundary
 
 Compare the captured original queries with Manager probes before implementing further read calls. The current source catalogue documents builders, not a verified full request. Do not generate a guessed executable payload. A complete write claim still requires separate approval and a controlled write/readback, preferably on a spare MF297D running the same B08 firmware.
+
+## Wi-Fi compatibility export from iPhone (v0.6.7)
+
+On the Manager's default read-only page, open **Wi-Fi** and tap **Kopiraj izvještaj**. If iOS denies clipboard permission, manually copy the selected JSON from the revealed text box. **Preuzmi JSON** is an alternative for browsers with working download support.
+
+The exported JSON records only the presence or absence of a fixed set of known Wi-Fi field names, firmware-B08 match and read-failure flags. It never includes the actual returned values, Wi-Fi SSIDs, passwords, IP/MAC addresses, or client names. Creating the report does not contact the router again or write settings.
+
+This is an easy *read-side compatibility* check, **not** proof of any Wi-Fi write command. Investigating which original WebUI request saves settings still needs offline source analysis or a carefully captured and sanitized HAR from desktop DevTools; Chrome on iOS cannot do that capture itself.
