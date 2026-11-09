@@ -224,3 +224,10 @@
 - Add AP switch, SSID broadcast, client isolation and max-client local **before → after** drafts using strict original source values. Drafts never generate a Goform command or allow submission; freshness and firmware mismatch fail closed.
 - Retain the original individual radio/AP read buttons and read-only compatibility report. No changes to router settings, DHCP/DNS or write gates.
 
+## 0.8.2
+
+- Organize the read-only preview into mobile-network, local-network and support sections, with dedicated 4G/SIM/APN, traffic, LAN/DHCP, DNS and system cards and quick navigation from the overview.
+- Include `traffic` and `system_extra` in the bounded, allowlisted preview GET snapshot. Preserve unknown values as unread rather than zero or guessed units; leave raw B08 throughput/uptime codes uninterpreted.
+- Exclude NAT/DMZ/UPnP/port-forwarding controls from the modern preview, because the target 4G connection uses CGNAT. Leave the legacy live panel and all write guards unchanged.
+- Keep advanced system source inspection and sanitized diagnostics accessible under an expandable section; no router or HA Core configuration changes.
+

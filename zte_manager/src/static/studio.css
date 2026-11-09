@@ -18,3 +18,18 @@ nav details{border:1px solid var(--border);border-radius:10px;padding:8px}nav su
 .wifi-advanced>summary{cursor:pointer;padding:18px 22px;font-weight:650;color:#bdd4eb;list-style-position:inside}
 .wifi-advanced[open]>summary{border-bottom:1px solid var(--border)}.wifi-advanced-content{padding:12px 18px}
 @media(max-width:780px){.wifi-center-grid{grid-template-columns:1fr}.wifi-network{padding:16px}.wifi-center-actions button{width:100%}}
+
+/* Mobile-first, read-only centers for original A1 B08 status groups. */
+.center-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.center-tiles .card{min-width:0}.center-card{background:linear-gradient(150deg,#192a3d,#16212f 78%)}
+.center-card .eyebrow{color:#a4c8e9;margin-bottom:7px}.center-card h2{margin-bottom:10px;overflow-wrap:anywhere}
+.center-card .facts{gap:15px;margin:17px 0}.center-card button{margin:6px 8px 0 0}
+.center-intro{display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin:4px 0 18px}
+.center-intro p{color:var(--muted);margin:0;font-size:13px;flex:1;min-width:210px}
+.center-actions{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0 24px}
+.empty-read{border-style:dashed}.empty-read p{margin-bottom:0}.system-compat{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 0}
+.system-compat .note{margin:0}.center-advanced{background:#14202e;border:1px solid var(--border);border-radius:15px;margin-top:18px}
+.center-advanced>summary{cursor:pointer;padding:18px 22px;font-weight:650;color:#bdd4eb}
+.center-advanced[open]>summary{border-bottom:1px solid var(--border)}.center-advanced-content{padding:16px;display:grid;gap:16px}
+@media(max-width:900px){.center-tiles{grid-template-columns:1fr}}
+@media(max-width:700px){.center-actions button{flex:1;min-width:145px}.center-advanced-content{padding:10px}}

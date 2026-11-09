@@ -5,8 +5,8 @@ function setup(){
  const dom=new JSDOM(fs.readFileSync(path.join(base,'preview.html'),'utf8'),{runScripts:'outside-only',url:'http://localhost/'}),w=dom.window,d=w.document,calls=[];
  w.TextEncoder=TextEncoder;w.AbortController=AbortController;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
- let fail=false,httpError=false,invalid=false,name='Actual home',now=Date.now();w.Date.now=()=>now;
- const snap=()=>({version:'0.7.0',groups:{device:{cr_version:'CR_A1HRMF297DV1.0.0B08'},wifi:{wifi_chip1_ssid1_ssid:name,guest_switch:'0'},wifi_extra:{wifi_chip1_ssid2_ssid:'Guest private',wifi_chip1_ssid2_switch_onoff:'1'},signal:{lte_rsrp:'-90',Z_SINR:'0'}},fields:{wifi_chip1_ssid2_max_access_num:'8',m_HideSSID:'0'},clients:[],sources:{wifi:{status:'ok',rows:[{hostname:'Phone',mac_addr:'02:00:00:00:00:01',ip_addr:'192.168.1.2'}]},lan:{status:'unavailable',rows:[]}},sample_time:Math.floor(now/1000),errors:{}});
+ let fail=false,httpError=false,invalid=false,name='Actual home',missingTraffic=false,now=Date.now();w.Date.now=()=>now;
+ const snap=()=>({version:'0.8.2',groups:{device:{cr_version:'CR_A1HRMF297DV1.0.0B08',hardware_version:'MF297D'},internet:{network_provider:'Operator',network_type:'LTE',wan_apn:'internet',pin_status:'ready',wan_ipaddr:'10.0.0.5'},traffic:missingTraffic?{}:{realtime_rx_bytes:'0',monthly_rx_bytes:'1048576',realtime_rx_thrpt:'250'},lan:{lan_ipaddr:'192.168.1.1',lan_netmask:'255.255.255.0'},dhcp:{dhcpEnabled:'1',dhcpStart:'192.168.1.100',dhcpEnd:'192.168.1.200'},dns:{dns_mode:'auto'},system_extra:{uptime:'31415',sntp_timezone:'1'},wifi:{wifi_chip1_ssid1_ssid:name,guest_switch:'0'},wifi_extra:{wifi_chip1_ssid2_ssid:'Guest private',wifi_chip1_ssid2_switch_onoff:'1'},signal:{lte_rsrp:'-90',Z_SINR:'0'}},fields:{wifi_chip1_ssid2_max_access_num:'8',m_HideSSID:'0'},clients:[],sources:{wifi:{status:'ok',rows:[{hostname:'Phone',mac_addr:'02:00:00:00:00:01',ip_addr:'192.168.1.2'}]},lan:{status:'unavailable',rows:[]}},sample_time:Math.floor(now/1000),errors:{}});
  w.fetch=async(url,options)=>{calls.push({url,method:options.method});if(fail)throw Error('offline');return {ok:!httpError,status:httpError?403:200,json:async()=>invalid?{}:url==='api/wifi_original_radio_read'?{status:'read_only',radio_status:'observed',switch_status:'observed_raw_code',radios:[{position:0,fields:{ChipIndex:'0',Channel:'11',BandWidth:'0',WirelessMode:'4',CountryCode:'HR',SSID:'HIDDEN_SECRET'}},{position:1,fields:{ChipIndex:'1',Channel:'0',BandWidth:'6',WirelessMode:'8',CountryCode:'HR'}}],module:{WiFiModuleSwitch:'1'},write_available:false}:url==='api/webui_wifi_modules'?{scan_scope:'wifi_modules',files:[{path:'/js/wifi/basic.js',sha256:'b'.repeat(64),wifi_literal_modules:['wifi/advance'],parameter_references:['wifi_chip1_channel']}],issues:[],write_verified:false}:url==='api/webui_evidence'?{files:[{path:'/index.html',sha256:'a'.repeat(64),command_references:[]}],issues:[],write_verified:false}:url==='api/preview_reservations'?{status:'empty_or_unsupported',rows:[]}:snap()};};
  const defaultFetch=w.fetch;
  w.fetch=(url,options)=>url==='api/wifi_original_ap_read'?(async()=>{
@@ -21,8 +21,39 @@ function setup(){
  })():defaultFetch(url,options);
  w.XMLHttpRequest=function(){throw Error('XHR forbidden')};w.WebSocket=function(){throw Error('WS forbidden')};
  w.eval(['network-insights.js','wifi-draft.js','wifi-control.js','preview.js'].map(f=>fs.readFileSync(path.join(base,f),'utf8')).join('\n'));
- return {w,d,calls,close:()=>w.close(),fail:()=>{fail=true},deny:()=>{httpError=true},invalid:()=>{invalid=true},rename:()=>{name='Changed home'},expire:()=>{now+=301000},click:s=>d.querySelector(s).click(),submit:()=>d.querySelector('#editForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})),flush:()=>new Promise(r=>setTimeout(r,0))};
+ return {w,d,calls,close:()=>w.close(),fail:()=>{fail=true},deny:()=>{httpError=true},invalid:()=>{invalid=true},missingTraffic:()=>{missingTraffic=true},rename:()=>{name='Changed home'},expire:()=>{now+=301000},click:s=>d.querySelector(s).click(),submit:()=>d.querySelector('#editForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})),flush:()=>new Promise(r=>setTimeout(r,0))};
 }
+test('4G / SIM / APN center shows observed raw values with no exposure controls or writes',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="internet"]');const content=u.d.querySelector('#content');
+  assert.match(content.textContent,/Mobilna veza/);assert.match(content.textContent,/PIN/);assert.match(content.textContent,/internet/);
+  assert.match(content.textContent,/CGNAT/);assert.match(content.textContent,/10.0.0.5/);
+  assert.equal(content.querySelector('input'),null);assert.equal(content.querySelector('[data-action="port-forward"]'),null);
+  assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'}]);
+ }finally{u.close()}
+});
+test('traffic zero is real data but missing counters never become a fake zero',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="traffic"]');const content=u.d.querySelector('#content');
+  assert.match(content.textContent,/Ručni uzorak/);assert.match(content.textContent,/1048576/);
+  const row=[...content.querySelectorAll('.facts div')].find(x=>x.querySelector('small')?.textContent.includes('trenutačni brojač'));
+  assert.equal(row.querySelector('strong').textContent,'0');
+  assert.match(content.textContent,/nemaju potvrđenu jedinicu/);
+  u.missingTraffic();u.click('#refresh');await u.flush();
+  assert.match(content.textContent,/Brojači prometa nisu očitani/);assert.equal(content.querySelector('.facts'),null);
+  assert.ok(u.calls.every(c=>c.method==='GET'));
+ }finally{u.close()}
+});
+test('LAN DHCP and DNS are distinct read-only cards; system advanced diagnostics remain reachable',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="lan"]');
+  assert.match(u.d.querySelector('#content').textContent,/AdGuard DHCP migracija nije aktivirana/);
+  assert.match(u.d.querySelector('#content').textContent,/192.168.1.100/);
+  u.click('[data-page="dns"]');assert.match(u.d.querySelector('#content').textContent,/Option 6/);
+  u.click('[data-page="system"]');assert.match(u.d.querySelector('#content').textContent,/31415/);
+  assert.equal(u.d.querySelector('.center-advanced').open,false);
+  u.d.querySelector('.center-advanced').open=true;u.click('#inspectWebui');await u.flush();
+  assert.match(u.d.querySelector('#content').textContent,/index.html/);
+  assert.ok(u.calls.every(c=>c.method==='GET'));
+ }finally{u.close()}
+});
 test('actual data draft escapes HTML and makes no write request',async()=>{const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('[data-edit="1:1"]');assert.equal(u.d.querySelector('[name="channel"]').disabled,true);u.d.querySelector('[name="ssid"]').value='<img src=x onerror=alert(1)>';u.submit();assert.equal(u.d.querySelector('#review img'),null);assert.match(u.d.querySelector('#review').textContent,/slanje blokirano/);assert.equal(u.calls.length,1);assert.match(u.d.querySelector('#content').textContent,/Actual home/);u.expire();u.submit();assert.match(u.d.querySelector('#formError').textContent,/Ponovno/);}finally{u.close()}});
 test('evidence-backed guest panel shows raw flags without an extra router request',async()=>{
  const u=setup();try{await u.flush();u.click('[data-page="wifi"]');const output=u.d.querySelector('#content').textContent;
