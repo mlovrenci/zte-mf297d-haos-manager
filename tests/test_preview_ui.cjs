@@ -144,3 +144,13 @@ test('refresh invalidates AP evidence and disables any previously available loca
   assert.ok(u.calls.every(c=>c.method==='GET'));
  }finally{u.close()}
 });
+
+test('failed re-read discards earlier AP evidence and cannot re-enable local AP editing',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('#readWifiCenter');await u.flush();await u.flush();
+  assert.equal(u.d.querySelector('[data-editap="1:1"]').disabled,false);
+  u.fail();u.click('#readWifiCenter');await u.flush();await u.flush();
+  assert.equal(u.d.querySelector('[data-editap="1:1"]').disabled,true);
+  assert.match(u.d.querySelector('.wifi-center').textContent,/Dio očitanja nije uspio/);
+  assert.ok(u.calls.every(c=>c.method==='GET'));
+ }finally{u.close()}
+});

@@ -156,6 +156,8 @@
  });
  document.addEventListener('click',async e=>{
   if(e.target.closest('button')?.id!=='readWifiCenter'||busy||wifiCenterBusy||originalRadioBusy||originalApBusy||!snapshot||stale()||value('device','cr_version')!==WifiDraft.expected)return;
+  // Never reuse AP evidence from a prior attempt if this new paired read fails.
+  originalRadio=null;originalRadioAt=0;originalAp=null;originalApAt=0;
   wifiCenterBusy=true;render();
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),40000);
   try{
