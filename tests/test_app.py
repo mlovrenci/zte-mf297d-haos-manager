@@ -131,10 +131,10 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.8.0')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.8.1')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_studio_and_live_routes(self):
-  for path, marker in [("/", b"preview.js"), ("/index.html", b"preview.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
+  for path, marker in [("/", b"wifi-control.js"), ("/index.html", b"wifi-control.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/wifi-control.js", b"const WifiControl"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
    with urlopen(self.addr+path,timeout=5) as response:
     self.assertIn(marker,response.read())
  def test_preview_snapshot_cannot_write_or_create_plan(self):

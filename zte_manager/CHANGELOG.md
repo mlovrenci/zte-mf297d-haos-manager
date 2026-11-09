@@ -217,3 +217,10 @@
 - Publish sanitized metadata to `ZTE DHCP DNS Option 6 probe` in Home Assistant over MQTT.
 - Never submit DNS or DHCP configuration writes; `option6_verified` remains false.
 
+## 0.8.1
+
+- Consolidate the four stock B08 main/guest 2.4/5 GHz access points into a mobile-friendly Wi-Fi Control Center; retain existing raw-status diagnostics under a collapsible advanced section.
+- Add an explicit two-step GET-only refresh for sanitized original radio and access-point fields. No automatic extra reads, and unknown codes remain unknown.
+- Add AP switch, SSID broadcast, client isolation and max-client local **before → after** drafts using strict original source values. Drafts never generate a Goform command or allow submission; freshness and firmware mismatch fail closed.
+- Retain the original individual radio/AP read buttons and read-only compatibility report. No changes to router settings, DHCP/DNS or write gates.
+

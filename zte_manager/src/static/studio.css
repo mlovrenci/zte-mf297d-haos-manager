@@ -3,3 +3,18 @@ nav details{border:1px solid var(--border);border-radius:10px;padding:8px}nav su
 #wifiReportText{display:block;width:100%;min-height:200px;margin-top:14px;padding:12px;color:var(--text);background:#0e1724;border:1px solid var(--border);border-radius:10px;resize:vertical;font:12px/1.5 ui-monospace,monospace}#wifiReportText[hidden]{display:none}
 
 .filters{display:flex;gap:16px;flex-wrap:wrap}.filters label{flex:1;min-width:140px}.warning{border-left:3px solid #dcb86a;padding:10px 14px;background:#302a20;color:#eed9b4!important}.sidebar{overflow-y:auto}.facts strong{word-break:break-word}
+
+/* Wi-Fi Control Center: one clear surface on phones, source-level diagnostics tucked away. */
+.wifi-center{background:linear-gradient(145deg,#1a3044 0%,#142332 62%,#17212f 100%);border-color:#416681}
+.wifi-center .card-head{margin-bottom:12px}.wifi-center .eyebrow{color:#9cc8ec;margin-bottom:6px}
+.wifi-center-actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:14px 0 8px}
+.wifi-center-actions .note{margin:0}.wifi-center-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+.wifi-network{background:#101f30b8;border:1px solid #35536d;border-radius:14px;padding:19px;min-width:0}
+.wifi-network-head{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.wifi-network .ssid{font-size:19px;margin:13px 0 2px}.wifi-origin{font-size:11px;color:#a3b9cf}
+.wifi-network .facts{margin:17px 0;gap:12px}.wifi-network .facts strong{font-weight:600;font-variant-numeric:tabular-nums}
+.wifi-network-actions{display:flex;flex-wrap:wrap;gap:9px}.wifi-network-actions button{font-size:12px;padding:9px 11px}
+.wifi-advanced{background:#14202e;border:1px solid var(--border);border-radius:15px;margin-top:18px}
+.wifi-advanced>summary{cursor:pointer;padding:18px 22px;font-weight:650;color:#bdd4eb;list-style-position:inside}
+.wifi-advanced[open]>summary{border-bottom:1px solid var(--border)}.wifi-advanced-content{padding:12px 18px}
+@media(max-width:780px){.wifi-center-grid{grid-template-columns:1fr}.wifi-network{padding:16px}.wifi-center-actions button{width:100%}}

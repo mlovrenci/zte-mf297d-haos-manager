@@ -6,7 +6,7 @@
  let snapshot=null,page='overview',active=null,busy=false,failed=false,receivedAt=0;
  let evidence=null,evidenceBusy=false,wifiEvidence=null,wifiEvidenceBusy=false;
  let originalRadio=null,originalRadioBusy=false,originalRadioAt=0;
- let originalAp=null,originalApBusy=false,originalApAt=0;
+ let originalAp=null,originalApBusy=false,originalApAt=0,wifiCenterBusy=false;
  let previous=null,deltas=[],history=[],reservationData=null,reservationBusy=false;
  let deviceQuery='',deviceSource='',deviceSort='name',editNames=false,aliases={};
  const aliasKey='zte-manager-device-names-v1',validMac=x=>/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(x);
@@ -44,6 +44,28 @@
   const stamp=safe&&originalApAt?` · ${new Date(originalApAt).toLocaleTimeString('hr-HR')}`:'';
   return `<section class="card"><div class="card-head"><h2>Izvorne B08 pristupne točke</h2><button id="readOriginalAp" ${!match||busy||originalApBusy?'disabled':''}>${originalApBusy?'Čitam…':'Očitaj glavnu i gostujuću mrežu'}</button></div><p>Izvorni getter može sadržavati Wi-Fi lozinke, ali ovaj pregled prima isključivo dopuštene statusne kodove. Nema SSID-a, lozinki niti cijelog odgovora. Kod 0/1 ne tumačimo kao potvrdu dostupnosti mreže.</p><p class="note">${status}${stamp}</p>${safe?(cards?`<div class="columns wide">${cards}</div>`:'<p>Nijedna pristupna točka nije nedvosmisleno očitana.</p>'):'<p>Pokreni odvojeno jednokratno očitanje za potvrđene parove radija i glavne/gostujuće mreže.</p>'}</section>`;
  }
+ function wifiCenter(match){
+  const cards=WifiControl.cards(snapshot,originalAp,originalRadio);
+  const freshAp=originalApAt&&Date.now()-originalApAt<=300000;
+  const freshRadio=originalRadioAt&&Date.now()-originalRadioAt<=300000;
+  const status=wifiCenterBusy?'U tijeku su dva jednokratna GET očitanja.':
+   originalAp?.status==='unavailable'||originalRadio?.status==='unavailable'?'Dio očitanja nije uspio; nedostupni podaci ostaju nepoznati.':
+   freshAp&&freshRadio?'B08 AP i radio očitanja dostupna su za pregled nacrta.':'Izvorna AP i radio očitanja nisu potpuna ili su starija od 5 minuta.';
+  const apNames={AccessPointSwitchStatus:'SSID prekidač (kod)',ApBroadcastDisabled:'Sakrivanje SSID-a (kod)',
+    ApIsolate:'Izolacija klijenata (kod)',ApMaxStationNumber:'Maksimalno klijenata',AuthMode:'Zaštita (izvorni kod)'};
+  return `<section class="card wifi-center"><div class="card-head"><div><div class="eyebrow">A1 B08 · POTVRĐENI PAROVI RADIJA I AP-A</div><h2>Wi-Fi Control Center</h2></div><span class="status off">Bez zapisivanja</span></div>
+   <p>Četiri pristupne točke prikazane su odvojeno. Izvorni statusi 0/1 i širine prikazani su kao kodovi — ne znače nužno aktivnu ili dostupnu mrežu.</p>
+   <div class="wifi-center-actions"><button id="readWifiCenter" ${!match||stale()||busy||wifiCenterBusy||originalRadioBusy||originalApBusy?'disabled':''}>${wifiCenterBusy?'Očitavam…':'Očitaj detalje svih Wi-Fi mreža'}</button><span class="note">Dva GET zahtjeva samo nakon klika; nema periodičkog čitanja.</span></div>
+   <p class="note" role="status">${esc(status)}</p><div class="wifi-center-grid">${cards.map(n=>{
+    const canDraftAp=match&&!stale()&&!busy&&!wifiCenterBusy&&freshAp&&n.hasAp&&['AccessPointSwitchStatus','ApBroadcastDisabled','ApIsolate','ApMaxStationNumber'].some(key=>n.ap[key]!==null);
+    const canDraftBasic=match&&!stale()&&!busy&&WifiDraft.networks(snapshot).some(s=>s.id===n.id&&['ssid','channel','width'].some(k=>s.values[k]!==null));
+    return `<article class="wifi-network"><div class="wifi-network-head"><h3>${esc(n.title)}</h3><span class="status off">READ ONLY</span></div>
+     <div class="ssid">${esc(n.ssid)}</div><div class="wifi-origin">SSID: početno očitanje · AP: ${n.hasAp?'izvorni GET':'nije očitano'}</div>
+     <div class="facts">${Object.entries(apNames).map(([key,label])=>fact(label,n.ap[key])).join('')}
+     ${fact('Radio kanal (izvorni kod)',n.radio.channel)}${fact('Širina (izvorni kod)',n.radio.width)}</div>
+     <div class="wifi-network-actions"><button data-edit="${n.id}" ${canDraftBasic?'':'disabled'}>SSID / kanal · nacrt</button><button class="secondary" data-editap="${n.id}" ${canDraftAp?'':'disabled'}>AP status · nacrt</button></div></article>`;
+   }).join('')}</div></section>`;
+ }
  function render(){
   $('title').textContent=titles[page];document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   if(!snapshot){$('content').innerHTML='<section class="card"><h2>Čekam očitanje</h2><p>Podaci će se prikazati tek nakon uspješnog odgovora routera.</p></section>';return;}
@@ -54,6 +76,10 @@
   if(page==='wifi')$('content').insertAdjacentHTML('beforeend',`<section class="card"><h2>Sigurnost i napredna polja · pregled</h2><p>Sigurnosni nazivi tumače samo točno poznate šifre zaštite glavnih SSID-ova. Ne znamo šifre zaštite gostujućih SSID-ova niti zaključujemo da je neka postavka upisiva.</p><div class="facts">${WifiDraft.networks(snapshot).map(n=>fact(n.title+' · način zaštite',WifiDraft.securityLabel(n.values.security))).join('')}</div><h3>Dodatni pokušaj čitanja naprednih polja</h3><div class="facts">${[['selectedChannel','selectedChannel'],['wifiMode','wifiMode'],['countryCode','countryCode'],['abg_rate','abg_rate']].map(([label,key])=>fact(label,snapshot.fields?.[key])).join('')}</div><p>Ova četiri naziva potječu iz izvornog B08 settera i provjeravaju se samo GET zahtjevom. Neotkriveno polje nije dokaz nepodržanosti, a vraćena vrijednost ne dokazuje da se postavka može mijenjati.</p></section>`);
   if(page==='wifi')$('content').insertAdjacentHTML('beforeend',originalRadioCard(match));
   if(page==='wifi')$('content').insertAdjacentHTML('beforeend',originalApCard(match));
+  if(page==='wifi'){
+   const old=$('content').innerHTML;
+   $('content').innerHTML=wifiCenter(match)+`<details class="wifi-advanced"><summary>Napredna Wi-Fi očitanja, dijagnostika i kompatibilnost</summary><div class="wifi-advanced-content">${old}</div></details>`;
+  }
   if(page==='devices')$('content').innerHTML=`<section class="card"><div class="card-head"><h2>Uređaji</h2><button id="editNames" class="secondary">${editNames?'Završi nazive':'Uredi lokalne nazive'}</button></div><p>Nazivi se spremaju samo u ovom pregledniku nakon izlaska iz polja. Prazan naziv vraća izvorni; router i HA entiteti ostaju nepromijenjeni.</p>${warningList()}<div class="filters"><label>Pretraga<input id="deviceQuery" type="search" value="${esc(deviceQuery)}" placeholder="Naziv, IP ili MAC"></label><label>Izvor<select id="deviceSource"><option value="">Svi</option><option value="wifi" ${deviceSource==='wifi'?'selected':''}>Wi-Fi</option><option value="lan" ${deviceSource==='lan'?'selected':''}>LAN</option></select></label><label>Poredaj<select id="deviceSort">${[['name','Naziv'],['ip','IP adresa'],['rssi','Najjači RSSI']].map(([v,t])=>`<option value="${v}" ${deviceSort===v?'selected':''}>${t}</option>`).join('')}</select></label></div><div id="deviceTable">${deviceTable()}</div></section>`;
   if(page==='reservations')$('content').innerHTML=`<section class="card"><div class="card-head"><h2>Rezervacije · očitanje</h2><button id="readReservations" ${reservationBusy?'disabled':''}>${reservationBusy?'Čitam…':'Očitaj rezervacije'}</button></div><p>Jedno ciljano očitanje, bez dijagnostičkih pokušaja zapisivanja. Prazan odgovor ne dokazuje da nema rezervacija.</p>${reservationData?`<p>${esc({observed_unverified:'Vraćeni su zapisi. Shema i primjena na B08 nisu potvrđene.',empty_or_unsupported:'Prazan odgovor ili nepodržano polje — stanje nije potvrđeno.',unsupported_or_missing:'Polje nije vraćeno.',unavailable:'Očitanje nije uspjelo.'}[reservationData.status]||'Nepoznat odgovor')}</p><div class="table-scroll"><table><thead><tr><th>Naziv</th><th>IP</th><th>MAC</th></tr></thead><tbody>${reservationData.rows.map(r=>`<tr><td>${esc(r.hostname||r.name||'Bez naziva')}</td><td>${esc(r.ip_addr||r.ip)}</td><td>${esc(r.mac_addr||r.mac)}</td></tr>`).join('')}</tbody></table></div>${reservationData.truncated?'<p>Prikazano je prvih 128 zapisa.</p>':''}`:'<p>Još nije očitano.</p>'}<p class="note">Ovaj prikaz ne omogućuje uređivanje rezervacija.</p></section>`;
   if(page==='changes')$('content').innerHTML=`<section class="card"><h2>Razlika zadnjih dvaju očitanja</h2><p>Uspoređuju se samo vrijednosti dostupne u oba očitanja. Nestanak iz popisa nije dokaz da je uređaj offline.</p>${!previous?'<p>Za usporedbu napravi još jedno očitanje.</p>':`<p>${new Date(previous.sample_time*1000).toLocaleTimeString('hr-HR')} → ${new Date(snapshot.sample_time*1000).toLocaleTimeString('hr-HR')}</p><div class="table-scroll"><table><thead><tr><th>Postavka / uređaj</th><th>Prije</th><th>Poslije</th></tr></thead><tbody>${deltas.map(c=>`<tr><td>${esc(c.label)}</td><td>${esc(c.before)}</td><td>${esc(c.after)}</td></tr>`).join('')}</tbody></table></div>${deltas.length?'':'<p>Nema promjena u usporedivim podacima.</p>'}`}</section>`;
@@ -66,7 +92,7 @@
   if(page==='system')$('content').insertAdjacentHTML('beforeend',`<section class="card"><h2>Ciljana provjera Wi-Fi modula</h2><p>Početne datoteke: izvorni menu, router i loader config. Čita se najviše 12 istovjetnih HTML/JS resursa, isključivo GET. Ne izvršava se JavaScript i ne čitaju se korisničke postavke.</p><button id="inspectWifiModules" ${wifiEvidenceBusy?'disabled':''}>${wifiEvidenceBusy?'Čitam Wi-Fi module…':'Analiziraj izvorne Wi-Fi module'}</button>${wifiEvidence?`<p>Pronađeno: ${wifiEvidence.files.length} datoteka. Nije dokazano da se ijedna postavka može mijenjati.</p><div class="table-scroll"><table><thead><tr><th>Datoteka</th><th>Literali modula</th><th>Wi-Fi parametri</th></tr></thead><tbody>${wifiEvidence.files.map(f=>`<tr><td>${esc(f.path)}<small>SHA-256: ${esc(f.sha256)}</small></td><td>${esc((f.wifi_literal_modules||[]).join(', ')||'Nema')}</td><td>${esc((f.parameter_references||[]).join(', ')||'Nema')}</td></tr>`).join('')}</tbody></table></div><p>${esc(wifiEvidence.issues.join(', ')||'Završeno unutar ograničenja.')}</p>`:''}<p class="note">Ovaj rezultat prikazuje samo statičke reference. Ne otkriva stvarne vrijednosti postavki niti omogućuje njihovo slanje.</p></section>`);
  }
  async function refresh(){
-  if(busy||reservationBusy||evidenceBusy||wifiEvidenceBusy||originalRadioBusy||originalApBusy)return;busy=true;$('refresh').disabled=true;$('editor').close();active=null;$('notice').textContent='Čitam router…';render();
+  if(busy||reservationBusy||evidenceBusy||wifiEvidenceBusy||originalRadioBusy||originalApBusy||wifiCenterBusy)return;busy=true;$('refresh').disabled=true;$('editor').close();active=null;$('notice').textContent='Čitam router…';render();
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
   try{const data=await read('api/preview_snapshot',controller.signal);if(!data.groups||!Array.isArray(data.clients))throw Error('Neispravan odgovor');previous=snapshot;snapshot=data;deltas=NetworkInsights.changes(previous,snapshot);history.push(NetworkInsights.signal(snapshot));history=history.slice(-60);failed=false;receivedAt=Date.now();reservationData=null;originalRadio=null;originalRadioAt=0;originalAp=null;originalApAt=0;$('sample').textContent='Očitano: '+new Date(data.sample_time*1000).toLocaleString('hr-HR');$('notice').textContent='Očitanje završeno. Nijedna postavka nije promijenjena.';}
   catch(e){failed=true;$('notice').textContent='Očitanje nije uspjelo. '+(snapshot?'Prikazani su stari podaci; priprema je blokirana.':'Provjeri prijavu i dostupnost routera.');}
@@ -84,8 +110,18 @@
    $('fields').innerHTML=textFields+toggle;
    $('review').innerHTML='';$('formError').textContent='';$('editor').showModal();
   }
+  if(b.dataset.editap&&!stale()&&!busy&&!wifiCenterBusy&&originalApAt&&Date.now()-originalApAt<=300000){
+   const n=WifiControl.cards(snapshot,originalAp,originalRadio).find(n=>n.id===b.dataset.editap);
+   if(!n||!n.hasAp)return;
+   active='ap:'+n.id;$('editorTitle').textContent=n.title+' — lokalni AP nacrt';
+   const fieldNames={AccessPointSwitchStatus:'SSID prekidač',ApBroadcastDisabled:'Sakrivanje SSID-a',ApIsolate:'Izolacija klijenata',ApMaxStationNumber:'Maksimalno klijenata'};
+   $('fields').innerHTML=Object.entries(fieldNames).filter(([key])=>n.ap[key]!==null).map(([key,label])=>key==='ApMaxStationNumber'?
+    `<label>${label} (izvorno ${esc(n.ap[key])})<input name="${key}" type="number" min="0" max="1024" step="1" value="${esc(n.ap[key])}"></label>`:
+    `<label>${label} · izvorni kod<select name="${key}"><option value="0" ${n.ap[key]==='0'?'selected':''}>0 · izvorni kod</option><option value="1" ${n.ap[key]==='1'?'selected':''}>1 · izvorni kod</option></select></label>`).join('');
+   $('review').innerHTML='';$('formError').textContent='';$('editor').showModal();
+  }
  });
- $('editForm').addEventListener('submit',e=>{e.preventDefault();$('formError').textContent='';$('review').innerHTML='';try{if(stale()||busy||!active)throw Error('Ponovno očitaj router.');const values={};for(const input of $('fields').querySelectorAll('input:not(:disabled),select:not(:disabled)'))values[input.name]=input.value;const plan=WifiDraft.plan(snapshot,active,values);$('review').innerHTML=`<table><thead><tr><th>Polje</th><th>Prije</th><th>Nacrt</th></tr></thead><tbody>${plan.changes.map(c=>`<tr><td>${labels[c.field]||'SSID prekidač'}</td><td>${esc(c.before)}</td><td>${esc(c.after)}</td></tr>`).join('')}</tbody></table><p><strong>Nacrt spreman za provjeru — slanje blokirano.</strong></p><ul>${plan.blockers.map(b=>`<li>${esc(b)}</li>`).join('')}</ul><p>Izvršivi Goform zahtjev nije generiran. Router nije promijenjen.</p>`;}catch(e){$('formError').textContent=e.message;}});
+ $('editForm').addEventListener('submit',e=>{e.preventDefault();$('formError').textContent='';$('review').innerHTML='';try{if(stale()||busy||wifiCenterBusy||!active)throw Error('Ponovno očitaj router.');const values={};for(const input of $('fields').querySelectorAll('input:not(:disabled),select:not(:disabled)'))values[input.name]=input.value;const ap=active.startsWith('ap:');if(ap&&(!originalApAt||Date.now()-originalApAt>300000))throw Error('Ponovno očitaj izvorne AP podatke.');const plan=ap?WifiControl.planAp(snapshot,originalAp,active.slice(3),values):WifiDraft.plan(snapshot,active,values);$('review').innerHTML=`<table><thead><tr><th>Polje</th><th>Prije</th><th>Nacrt</th></tr></thead><tbody>${plan.changes.map(c=>`<tr><td>${esc(labels[c.field]||c.field)}</td><td>${esc(c.before)}</td><td>${esc(c.after)}</td></tr>`).join('')}</tbody></table><p><strong>Nacrt spreman za provjeru — slanje blokirano.</strong></p><ul>${plan.blockers.map(b=>`<li>${esc(b)}</li>`).join('')}</ul><p>Izvršivi Goform zahtjev nije generiran. Router nije promijenjen.</p>`;}catch(e){$('formError').textContent=e.message;}});
  $('fields').addEventListener('input',()=>{$('review').innerHTML='';$('formError').textContent='';});
  $('fields').addEventListener('change',()=>{$('review').innerHTML='';$('formError').textContent='';});
  document.addEventListener('input',e=>{if(e.target.id==='deviceQuery'){deviceQuery=e.target.value;$('deviceTable').innerHTML=deviceTable();}});
@@ -117,6 +153,24 @@
    wifiEvidence=result;
   }catch(err){wifiEvidence={files:[],issues:['read_unavailable']};}
   finally{clearTimeout(timer);wifiEvidenceBusy=false;render();}
+ });
+ document.addEventListener('click',async e=>{
+  if(e.target.closest('button')?.id!=='readWifiCenter'||busy||wifiCenterBusy||originalRadioBusy||originalApBusy||!snapshot||stale()||value('device','cr_version')!==WifiDraft.expected)return;
+  wifiCenterBusy=true;render();
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),40000);
+  try{
+   const radio=await read('api/wifi_original_radio_read',controller.signal);
+   if(radio.status!=='read_only'||radio.write_available!==false||!Array.isArray(radio.radios)||radio.radios.length>4)throw Error('Neispravan odgovor radija');
+   originalRadio=radio;originalRadioAt=Date.now();
+   const ap=await read('api/wifi_original_ap_read',controller.signal);
+   if(ap.status!=='read_only'||ap.write_available!==false||!Array.isArray(ap.access_points)||ap.access_points.length>4)throw Error('Neispravan odgovor pristupnih točaka');
+   originalAp=ap;originalApAt=Date.now();
+   $('notice').textContent='Detalji Wi-Fi mreža očitani bez promjene postavki.';
+  }catch(err){
+   if(!originalRadioAt){originalRadio={status:'unavailable'};originalRadioAt=0;}
+   if(!originalApAt){originalAp={status:'unavailable'};originalApAt=0;}
+   $('notice').textContent='Detalji nisu potpuno očitani; pokušaj ponovno. Router nije promijenjen.';
+  }finally{clearTimeout(timer);wifiCenterBusy=false;render();}
  });
  document.addEventListener('click',async e=>{
   if(e.target.closest('button')?.id!=='readOriginalRadio'||busy||originalRadioBusy||!snapshot||value('device','cr_version')!==WifiDraft.expected)return;

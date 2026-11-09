@@ -1,4 +1,4 @@
-"""ZTE Manager v0.8.0: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
+"""ZTE Manager v0.8.1: HAOS Ingress, local UI and explicitly approved ZTE Goform writes."""
 import ipaddress
 import json
 import os
@@ -21,7 +21,7 @@ from migration_inventory import capture_inventory, publish_inventory
 from static_binding_test import listen_once as listen_static_binding_test
 from static_reservations import validated_rows, prepare as prepare_reservation, execute as execute_reservation, reject_active_ip_collision
 
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ZTE_OPTIONS_PATH", "/data/options.json"))
 AUDIT = Path(os.environ.get("ZTE_AUDIT_PATH", "/data/zte_audit.jsonl"))
@@ -497,6 +497,7 @@ class Handler(BaseHTTPRequestHandler):
                   "/demo": ("static/studio.html", "text/html; charset=utf-8"),
                   "/static/network-insights.js": ("static/network-insights.js", "application/javascript; charset=utf-8"),
                   "/static/wifi-draft.js": ("static/wifi-draft.js", "application/javascript; charset=utf-8"),
+                  "/static/wifi-control.js": ("static/wifi-control.js", "application/javascript; charset=utf-8"),
                   "/static/preview.js": ("static/preview.js", "application/javascript; charset=utf-8"),
                   "/live": ("static/index.html", "text/html; charset=utf-8"),
                   "/static/studio.js": ("static/studio.js", "application/javascript; charset=utf-8"),
