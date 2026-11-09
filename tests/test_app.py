@@ -131,7 +131,7 @@ class HTTPTests(unittest.TestCase):
   if body is not None:req.add_header('Content-Type','application/json')
   with urlopen(req,timeout=5) as r:return json.loads(r.read())
  def test_meta_state(self):
-  self.assertEqual(self.fetch('/api/meta')['version'],'0.8.1')
+  self.assertEqual(self.fetch('/api/meta')['version'],'0.8.2')
   self.assertEqual(self.fetch('/api/state')['groups']['device']['cr_version'],FIRMWARE)
  def test_studio_and_live_routes(self):
   for path, marker in [("/", b"wifi-control.js"), ("/index.html", b"wifi-control.js"), ("/demo", b"connect-src"), ("/live", b"writeModeToggle"), ("/static/wifi-control.js", b"const WifiControl"), ("/static/studio.js", b"ZteDemo.create"), ("/static/dev-model.js", b"const ZteDemo")]:
@@ -144,6 +144,8 @@ class HTTPTests(unittest.TestCase):
   write.assert_not_called()
   self.assertFalse(result['write_available'])
   self.assertEqual(result['groups']['device']['cr_version'],FIRMWARE)
+  self.assertIn('traffic',result['groups'])
+  self.assertIn('system_extra',result['groups'])
   self.assertEqual(main.PLANS,plans)
   self.assertFalse(result['clients_error'])
  def test_preview_clients_error_is_not_empty_success(self):

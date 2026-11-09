@@ -4,7 +4,7 @@ Home Assistant OS App for ZTE MF297D routers using local Goform API, with a web 
 
 ## Status
 
-Version: **0.8.1**. Read capabilities include LTE/WAN, LAN/DHCP, Wi-Fi, clients, traffic and diagnostic data, plus manual original B08 radio and access-point readouts with a strict server-side secret filter.
+Version: **0.8.2**. The read-only home page groups LTE/WAN/SIM/APN, traffic, LAN/DHCP/DNS, Wi-Fi, clients and system diagnostics. Manual original B08 radio and access-point readouts retain their strict server-side secret filter.
 
 **General router configuration writes remain unverified on the actual A1 B08 firmware and are disabled by default.** DHCP MAC/IP reservation Add/Delete is independently confirmed and implemented. DHCP Option 6 DNS write remains **unimplemented/unconfirmed**. Don't disable DHCP or modify WAN, Wi-Fi, APN or DNS until each operation is independently verified and recovery access is available.
 
@@ -111,6 +111,8 @@ In v0.7.9 the new Wi-Fi preview adds a manual "Izvorni B08 radio podaci" read ca
 In v0.8.0 the Wi-Fi preview also provides "Izvorne B08 pristupne točke". Its separate button executes the stock `queryAccessPointInfo` GET only on demand, after matching firmware. The route never exposes raw responses, SSIDs or passwords: it emits only whitelisted, bounded status fields for the four confirmed main/guest and 2.4/5 GHz index pairs. No automatic request or configuration writes are added.
 
 In v0.8.1, **Wi-Fi Control Center** places all four confirmed network positions in one responsive view. Its one button reads the original radio and AP codes through sequential GET requests. The AP local-only editor can review status, SSID visibility, isolation and max-client changes as a **before → after** table; it never builds a Goform payload or sends any configuration. Original diagnostics are still available in the expandable advanced section. Router Wi-Fi, DHCP/DNS and app write gates remain untouched.
+
+In v0.8.2, the new read-only preview adds organized **4G/SIM/APN, Traffic, LAN/DHCP, DNS and System** cards. Traffic and uptime use only original allowlisted B08 GET keys; missing counters are never displayed as zero or invented Mbps. System diagnostics are folded into an advanced section. The new UI deliberately excludes NAT, DMZ, UPnP and port-forwarding controls for the CGNAT 4G use case. The legacy `live` panel remains available unchanged. No new write paths, router settings or app write gates are altered.
 
 ### Reviewed service contracts (v0.6.6)
 

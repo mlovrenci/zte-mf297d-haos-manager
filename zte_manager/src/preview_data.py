@@ -6,7 +6,8 @@ from zte_api import RouterError
 
 def collect(client):
     groups, errors = client.query_groups([
-        'device', 'internet', 'signal', 'wifi', 'wifi_extra', 'lan', 'dhcp', 'dns'])
+        'device', 'internet', 'signal', 'traffic', 'wifi', 'wifi_extra',
+        'lan', 'dhcp', 'dns', 'system_extra'])
     details = client.wifi_radio_details()
     sources = {}
     for name, method in [('wifi', client.clients), ('lan', client.lan_clients)]:
