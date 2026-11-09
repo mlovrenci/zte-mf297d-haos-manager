@@ -4,7 +4,7 @@ Home Assistant OS App for ZTE MF297D routers using local Goform API, with a web 
 
 ## Status
 
-Version: **0.8.0**. Read capabilities include LTE/WAN, LAN/DHCP, Wi-Fi, clients, traffic and diagnostic data, plus manual original B08 radio and access-point readouts with a strict server-side secret filter.
+Version: **0.8.1**. Read capabilities include LTE/WAN, LAN/DHCP, Wi-Fi, clients, traffic and diagnostic data, plus manual original B08 radio and access-point readouts with a strict server-side secret filter.
 
 **General router configuration writes remain unverified on the actual A1 B08 firmware and are disabled by default.** DHCP MAC/IP reservation Add/Delete is independently confirmed and implemented. DHCP Option 6 DNS write remains **unimplemented/unconfirmed**. Don't disable DHCP or modify WAN, Wi-Fi, APN or DNS until each operation is independently verified and recovery access is available.
 
@@ -109,6 +109,8 @@ Since v0.7.7, this reader additionally resolves literal minified export aliases 
 In v0.7.9 the new Wi-Fi preview adds a manual "Izvorni B08 radio podaci" read card, showing safe original per-radio codes only after pressing its button; the standard page load does not run the additional radio queries.
 
 In v0.8.0 the Wi-Fi preview also provides "Izvorne B08 pristupne točke". Its separate button executes the stock `queryAccessPointInfo` GET only on demand, after matching firmware. The route never exposes raw responses, SSIDs or passwords: it emits only whitelisted, bounded status fields for the four confirmed main/guest and 2.4/5 GHz index pairs. No automatic request or configuration writes are added.
+
+In v0.8.1, **Wi-Fi Control Center** places all four confirmed network positions in one responsive view. Its one button reads the original radio and AP codes through sequential GET requests. The AP local-only editor can review status, SSID visibility, isolation and max-client changes as a **before → after** table; it never builds a Goform payload or sends any configuration. Original diagnostics are still available in the expandable advanced section. Router Wi-Fi, DHCP/DNS and app write gates remain untouched.
 
 ### Reviewed service contracts (v0.6.6)
 

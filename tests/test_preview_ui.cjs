@@ -20,7 +20,7 @@ function setup(){
   }};
  })():defaultFetch(url,options);
  w.XMLHttpRequest=function(){throw Error('XHR forbidden')};w.WebSocket=function(){throw Error('WS forbidden')};
- w.eval(['network-insights.js','wifi-draft.js','preview.js'].map(f=>fs.readFileSync(path.join(base,f),'utf8')).join('\n'));
+ w.eval(['network-insights.js','wifi-draft.js','wifi-control.js','preview.js'].map(f=>fs.readFileSync(path.join(base,f),'utf8')).join('\n'));
  return {w,d,calls,close:()=>w.close(),fail:()=>{fail=true},deny:()=>{httpError=true},invalid:()=>{invalid=true},rename:()=>{name='Changed home'},expire:()=>{now+=301000},click:s=>d.querySelector(s).click(),submit:()=>d.querySelector('#editForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})),flush:()=>new Promise(r=>setTimeout(r,0))};
 }
 test('actual data draft escapes HTML and makes no write request',async()=>{const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('[data-edit="1:1"]');assert.equal(u.d.querySelector('[name="channel"]').disabled,true);u.d.querySelector('[name="ssid"]').value='<img src=x onerror=alert(1)>';u.submit();assert.equal(u.d.querySelector('#review img'),null);assert.match(u.d.querySelector('#review').textContent,/slanje blokirano/);assert.equal(u.calls.length,1);assert.match(u.d.querySelector('#content').textContent,/Actual home/);u.expire();u.submit();assert.match(u.d.querySelector('#formError').textContent,/Ponovno/);}finally{u.close()}});
@@ -108,3 +108,49 @@ test('Wi-Fi summary supports manual selection when iOS clipboard is unavailable'
 });
 
 for(const fault of ['deny','invalid'])test(`refresh ${fault} blocks old draft submission`,async()=>{const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('[data-edit="1:1"]');u.d.querySelector('[name="ssid"]').value='Offline test';u[fault]();u.click('#refresh');await u.flush();u.submit();assert.match(u.d.querySelector('#formError').textContent,/Ponovno/);assert.equal(u.d.querySelector('[data-edit="1:1"]').disabled,true);assert.ok(u.calls.every(c=>c.method==='GET'&&c.url==='api/preview_snapshot'));}finally{u.close()}});
+
+test('Wi-Fi Control Center shows four exact mapped cards and groups diagnostics on iPhone',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="wifi"]');
+  assert.equal(u.d.querySelectorAll('.wifi-network').length,4);
+  assert.match(u.d.querySelector('.wifi-center').textContent,/Glavna · 2,4 GHz/);
+  assert.match(u.d.querySelector('.wifi-center').textContent,/Gostujuća · 5 GHz/);
+  assert.equal(u.d.querySelector('.wifi-advanced').open,false);
+  assert.equal(u.d.querySelector('[data-editap="1:1"]').disabled,true);
+  assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'}]);
+ }finally{u.close()}
+});
+
+test('unified Wi-Fi details are explicit two GETs, sanitized, and AP changes remain a local-only draft',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('#readWifiCenter');await u.flush();await u.flush();
+  assert.deepEqual(u.calls,[{url:'api/preview_snapshot',method:'GET'},{url:'api/wifi_original_radio_read',method:'GET'},{url:'api/wifi_original_ap_read',method:'GET'}]);
+  const text=u.d.querySelector('.wifi-center').textContent;
+  assert.match(text,/2,4 GHz/);assert.match(text,/Maksimalno klijenata/);
+  assert.ok(!text.includes('HIDDEN_PASS'));assert.ok(!text.includes('HIDDEN_SSID'));assert.ok(!text.includes('HIDDEN_SECRET'));
+  assert.equal(u.d.querySelector('[data-editap="1:1"]').disabled,false);
+  u.click('[data-editap="1:1"]');
+  const select=u.d.querySelector('[name="ApIsolate"]');select.value='1';select.dispatchEvent(new u.w.Event('change',{bubbles:true}));
+  u.submit();assert.match(u.d.querySelector('#review').textContent,/ApIsolate/);
+  assert.match(u.d.querySelector('#review').textContent,/slanje blokirano/);
+  assert.equal(u.calls.length,3);assert.ok(u.calls.every(c=>c.method==='GET'));
+  u.expire();u.submit();assert.match(u.d.querySelector('#formError').textContent,/Ponovno/);
+ }finally{u.close()}
+});
+
+test('refresh invalidates AP evidence and disables any previously available local AP editor',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('#readWifiCenter');await u.flush();await u.flush();
+  u.click('[data-editap="1:1"]');u.click('#refresh');await u.flush();
+  assert.equal(u.d.querySelector('[data-editap="1:1"]').disabled,true);
+  u.submit();assert.match(u.d.querySelector('#formError').textContent,/Ponovno/);
+  assert.ok(u.calls.every(c=>c.method==='GET'));
+ }finally{u.close()}
+});
+
+test('failed re-read discards earlier AP evidence and cannot re-enable local AP editing',async()=>{
+ const u=setup();try{await u.flush();u.click('[data-page="wifi"]');u.click('#readWifiCenter');await u.flush();await u.flush();
+  assert.equal(u.d.querySelector('[data-editap="1:1"]').disabled,false);
+  u.fail();u.click('#readWifiCenter');await u.flush();await u.flush();
+  assert.equal(u.d.querySelector('[data-editap="1:1"]').disabled,true);
+  assert.match(u.d.querySelector('.wifi-center').textContent,/Dio očitanja nije uspio/);
+  assert.ok(u.calls.every(c=>c.method==='GET'));
+ }finally{u.close()}
+});
